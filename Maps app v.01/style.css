@@ -3,110 +3,105 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
-    font-family: 'Inter', sans-serif;
+    font-family: 'Roboto', sans-serif;
 }
 
-.container {
-    display: flex;
-    flex-direction: column;
+.app-container {
+    position: relative;
     height: 100vh;
-    background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
-}
-
-.controls-container {
-    padding: 15px;
-    background: white;
-    box-shadow: 0 2px 15px rgba(0,0,0,0.1);
-    z-index: 1000;
+    width: 100vw;
 }
 
 .search-container {
+    position: absolute;
+    top: 1rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    width: 90%;
+    max-width: 400px;
     display: flex;
-    gap: 10px;
-    margin-bottom: 10px;
+    flex-direction: column;
+    gap: 0.5rem;
 }
 
 #search-input {
-    flex: 1;
-    padding: 10px;
-    border: 2px solid #e0e0e0;
+    width: 100%;
+    padding: 0.9rem 1.5rem;
+    border: none;
     border-radius: 8px;
-    font-size: 14px;
+    background: white;
+    font-size: 15px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     transition: all 0.3s ease;
 }
 
 #search-input:focus {
-    border-color: #4a90e2;
     outline: none;
-    box-shadow: 0 0 0 3px rgba(74,144,226,0.2);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    transform: scale(1.02);
 }
 
-.btn {
-    padding: 10px 20px;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: all 0.3s ease;
-    background: #4a90e2;
-    color: white;
-}
-
-.btn:hover {
-    transform: scale(1.05);
-    box-shadow: 0 4px 15px rgba(74,144,226,0.3);
-}
-
-.layer-controls {
-    display: flex;
-    gap: 8px;
-}
-
-.layer-btn {
-    padding: 8px 16px;
-    border: 2px solid #4a90e2;
-    border-radius: 6px;
+.toolbar {
     background: white;
-    color: #4a90e2;
-    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 8px;
+    display: flex;
+    gap: 0.5rem;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+}
+
+.map-btn {
+    flex: 1;
+    padding: 0.7rem 1rem;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: #5f6368;
     font-size: 14px;
     font-weight: 500;
+    cursor: pointer;
     transition: all 0.3s ease;
 }
 
-.layer-btn:hover {
-    background: #4a90e2;
-    color: white;
+.map-btn:hover {
+    background: #f1f3f4;
     transform: scale(1.05);
 }
 
-.layer-btn.active {
-    background: #4a90e2;
-    color: white;
+.map-btn.active {
+    background: #e8f0fe;
+    color: #1a73e8;
 }
 
 #map {
-    flex: 1;
+    height: 100%;
     width: 100%;
-    z-index: 1;
+}
+
+/* Leaflet custom styles */
+.leaflet-control-geocoder {
+    border-radius: 8px !important;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1) !important;
+}
+
+.leaflet-popup-content-wrapper {
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
 @media (max-width: 768px) {
-    .controls-container {
-        padding: 10px;
-    }
-
     .search-container {
-        flex-direction: column;
+        width: 95%;
+        top: 0.5rem;
     }
-
-    .layer-controls {
-        margin-top: 10px;
-        justify-content: space-between;
+    
+    .toolbar {
+        padding: 0.3rem;
     }
-
-    .btn, .layer-btn {
-        width: 100%;
-        padding: 12px;
+    
+    .map-btn {
+        padding: 0.5rem;
+        font-size: 13px;
     }
 }

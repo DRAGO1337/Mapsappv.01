@@ -1,99 +1,98 @@
-
-// Initialize map centered on London
+// Initialize map
 const map = L.map('map').setView([51.505, -0.09], 13);
 
-// Define tile layers
+// Define tile layers with modern styling
 const layers = {
-    street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenStreetMap contributors'
+    street: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
+        attribution: '©OpenStreetMap, ©CartoDB',
+        maxZoom: 20
     }),
     satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-        attribution: '© Esri'
+        attribution: '©Esri',
+        maxZoom: 20
     }),
     topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
-        attribution: '© OpenTopoMap contributors'
+        attribution: '©OpenTopoMap',
+        maxZoom: 17
     })
 };
 
 // Add default street layer
 layers.street.addTo(map);
 
-// Handle layer controls
-const layerButtons = document.querySelectorAll('.layer-btn');
+// Initialize geocoder
+const geocoder = L.Control.Geocoder.nominatim();
+const searchInput = document.getElementById('search-input');
+
+// Handle search input
+searchInput.addEventListener('keypress', async (e) => {
+    if (e.key === 'Enter') {
+        const query = searchInput.value;
+        try {
+            geocoder.geocode(query, results => {
+                if (results.length > 0) {
+                    const { center, name } = results[0];
+                    map.setView(center, 13);
+                    L.marker(center).addTo(map)
+                        .bindPopup(name)
+                        .openPopup();
+                }
+            });
+        } catch (error) {
+            console.error('Search failed:', error);
+        }
+    }
+});
+
+// Handle layer switching
+const layerButtons = document.querySelectorAll('.map-btn');
 layerButtons.forEach(button => {
     button.addEventListener('click', () => {
         const layerType = button.dataset.layer;
-        
+
         // Remove all layers
         Object.values(layers).forEach(layer => map.removeLayer(layer));
-        
+
         // Add selected layer
         layers[layerType].addTo(map);
-        
+
         // Update active state
         layerButtons.forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
     });
 });
 
+// Initialize markers array for routing
 let markers = [];
-let routingControl = null;
 
-// Click to add marker
+// Click to add marker with modern styling
 map.on('click', (e) => {
-    const marker = L.marker(e.latlng).addTo(map);
-    const popup = `Latitude: ${e.latlng.lat.toFixed(4)}<br>Longitude: ${e.latlng.lng.toFixed(4)}`;
-    marker.bindPopup(popup).openPopup();
+    const marker = L.marker(e.latlng, {
+        icon: L.divIcon({
+            className: 'custom-marker',
+            html: `<div style="
+                width: 24px;
+                height: 24px;
+                background: #1a73e8;
+                border-radius: 50%;
+                border: 2px solid white;
+                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+            "></div>`
+        })
+    }).addTo(map);
+
     markers.push(marker);
 
-    if (markers.length === 2) {
-        drawRoute();
-    }
     if (markers.length > 2) {
-        markers.forEach(m => map.removeLayer(m));
-        markers = [marker];
-        if (routingControl) {
-            map.removeControl(routingControl);
-            routingControl = null;
-        }
+        markers[0].remove();
+        markers.shift();
     }
-});
 
-// Draw route between two points
-function drawRoute() {
-    if (routingControl) {
-        map.removeControl(routingControl);
-    }
-    routingControl = L.Routing.control({
-        waypoints: [
-            L.latLng(markers[0].getLatLng()),
-            L.latLng(markers[1].getLatLng())
-        ],
-        routeWhileDragging: true
-    }).addTo(map);
-}
-
-// Geocoding search
-document.getElementById('search-button').addEventListener('click', async () => {
-    const query = document.getElementById('search-input').value;
-    if (!query) return;
-
-    try {
-        const response = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}`);
-        const data = await response.json();
-        
-        if (data.length > 0) {
-            const location = [parseFloat(data[0].lat), parseFloat(data[0].lon)];
-            map.setView(location, 13);
-            L.marker(location).addTo(map)
-                .bindPopup(data[0].display_name)
-                .openPopup();
-        } else {
-            alert('Location not found');
-        }
-    } catch (error) {
-        console.error('Search error:', error);
-        alert('Search failed. Please try again.');
+    if (markers.length === 2) {
+        // Draw route between markers
+        const start = markers[0].getLatLng();
+        const end = markers[1].getLatLng();
+        // Add routing logic here if needed
     }
 });
 
