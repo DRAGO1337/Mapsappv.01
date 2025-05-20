@@ -7,11 +7,27 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="app-container">
         <div class="top-bar">
+            <div class="search-box">
+                <div class="search-input-container">
+                    <input type="text" id="search-input" placeholder="Search places...">
+                    <button id="clear-search" class="icon-button"><i class="fas fa-times"></i></button>
+                </div>
+                <div class="search-results"></div>
+            </div>
+            <div class="controls">
+                <button id="current-location" class="control-btn" title="My Location">
+                    <i class="fas fa-location-arrow"></i>
+                </button>
+                <button id="bookmark-location" class="control-btn" title="Save Location">
+                    <i class="fas fa-bookmark"></i>
+                </button>
+            </div>
             <div class="layer-controls">
                 <button class="layer-btn active" data-layer="street">Map</button>
                 <button class="layer-btn" data-layer="satellite">Satellite</button>
@@ -19,6 +35,14 @@
             </div>
         </div>
         <div id="map"></div>
+        <div id="zoom-level" class="zoom-indicator"></div>
+        <div id="loading-indicator" class="loading-hidden">
+            <div class="spinner"></div>
+        </div>
+        <div id="bookmarks-panel" class="bookmarks-panel hidden">
+            <h3>Saved Locations</h3>
+            <div id="bookmarks-list"></div>
+        </div>
     </div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
