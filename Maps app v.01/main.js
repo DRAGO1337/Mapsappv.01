@@ -1,5 +1,13 @@
-// Initialize map
-const map = L.map('map').setView([51.505, -0.09], 13);
+
+// Initialize map with custom zoom control position
+const map = L.map('map', {
+    zoomControl: false
+}).setView([51.505, -0.09], 13);
+
+// Add zoom control to top-right corner
+L.control.zoom({
+    position: 'topright'
+}).addTo(map);
 
 // Define tile layers
 const layers = {
@@ -20,24 +28,80 @@ const layers = {
 // Add default street layer
 layers.street.addTo(map);
 
-// Initialize geocoder
-const geocoder = L.Control.Geocoder.nominatim();
+// Initialize search elements
 const searchInput = document.getElementById('search-input');
+const searchResults = document.getElementById('search-results');
+let currentMarker = null;
 
-// Handle search
-searchInput.addEventListener('keypress', (e) => {
-    if (e.key === 'Enter') {
-        const query = searchInput.value;
-        geocoder.geocode(query, results => {
-            if (results.length > 0) {
-                const { center, name } = results[0];
-                map.setView(center, 13);
-                L.marker(center)
-                    .addTo(map)
-                    .bindPopup(name)
-                    .openPopup();
-            }
-        });
+// Initialize geocoder
+const provider = new GeoSearch.OpenStreetMapProvider();
+
+// Debounce function for search
+function debounce(func, wait) {
+    let timeout;
+    return function (...args) {
+        clearTimeout(timeout);
+        timeout = setTimeout(() => func.apply(this, args), wait);
+    };
+}
+
+// Handle search input with autocomplete
+searchInput.addEventListener('input', debounce(async (e) => {
+    const query = e.target.value;
+    if (query.length < 3) {
+        searchResults.style.display = 'none';
+        return;
+    }
+
+    try {
+        const results = await provider.search({ query });
+        if (results.length > 0) {
+            searchResults.innerHTML = results
+                .slice(0, 5)
+                .map(result => `
+                    <div class="search-result-item" data-lat="${result.y}" data-lon="${result.x}">
+                        ${result.label}
+                    </div>
+                `).join('');
+            searchResults.style.display = 'block';
+
+            // Add click handlers to results
+            document.querySelectorAll('.search-result-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    const lat = parseFloat(item.dataset.lat);
+                    const lon = parseFloat(item.dataset.lon);
+                    
+                    // Remove existing marker
+                    if (currentMarker) {
+                        map.removeLayer(currentMarker);
+                    }
+
+                    // Add new marker
+                    currentMarker = L.marker([lat, lon]).addTo(map)
+                        .bindPopup(item.textContent)
+                        .openPopup();
+
+                    // Pan to location
+                    map.setView([lat, lon], 13, {
+                        animate: true,
+                        duration: 1
+                    });
+
+                    // Clear search
+                    searchInput.value = item.textContent;
+                    searchResults.style.display = 'none';
+                });
+            });
+        }
+    } catch (error) {
+        console.error('Search failed:', error);
+    }
+}, 300));
+
+// Close search results when clicking outside
+document.addEventListener('click', (e) => {
+    if (!e.target.closest('.search-input-container')) {
+        searchResults.style.display = 'none';
     }
 });
 
@@ -57,59 +121,4 @@ layerButtons.forEach(button => {
         layerButtons.forEach(btn => btn.classList.remove('active'));
         button.classList.add('active');
     });
-});
-
-// Initialize markers array for routing
-let markers = [];
-
-// Click to add marker with modern styling
-map.on('click', (e) => {
-    const marker = L.marker(e.latlng, {
-        icon: L.divIcon({
-            className: 'custom-marker',
-            html: `<div style="
-                width: 24px;
-                height: 24px;
-                background: #1a73e8;
-                border-radius: 50%;
-                border: 2px solid white;
-                box-shadow: 0 2px 4px rgba(0,0,0,0.2);
-            "></div>`
-        })
-    }).addTo(map);
-
-    markers.push(marker);
-
-    if (markers.length > 2) {
-        markers[0].remove();
-        markers.shift();
-    }
-
-    if (markers.length === 2) {
-        // Draw route between markers
-        const start = markers[0].getLatLng();
-        const end = markers[1].getLatLng();
-        // Add routing logic here if needed
-    }
-});
-
-// Get user's location
-document.getElementById('location-button').addEventListener('click', () => {
-    if (!navigator.geolocation) {
-        alert('Geolocation is not supported by your browser');
-        return;
-    }
-
-    navigator.geolocation.getCurrentPosition(
-        (position) => {
-            const userLocation = [position.coords.latitude, position.coords.longitude];
-            map.setView(userLocation, 13);
-            L.marker(userLocation).addTo(map)
-                .bindPopup('You are here!')
-                .openPopup();
-        },
-        () => {
-            alert('Unable to get your location');
-        }
-    );
 });
