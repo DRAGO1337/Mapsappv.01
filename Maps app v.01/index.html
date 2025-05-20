@@ -6,14 +6,22 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="container">
-        <div class="search-container">
-            <input type="text" id="search-input" placeholder="Search location...">
-            <button id="search-button">Search</button>
-            <button id="location-button">My Location</button>
+        <div class="controls-container">
+            <div class="search-container">
+                <input type="text" id="search-input" placeholder="Search location...">
+                <button id="search-button" class="btn">Search</button>
+                <button id="location-button" class="btn">My Location</button>
+            </div>
+            <div class="layer-controls">
+                <button class="layer-btn active" data-layer="street">Street</button>
+                <button class="layer-btn" data-layer="satellite">Satellite</button>
+                <button class="layer-btn" data-layer="topo">Topographic</button>
+            </div>
         </div>
         <div id="map"></div>
     </div>

@@ -3,53 +3,110 @@
     margin: 0;
     padding: 0;
     box-sizing: border-box;
+    font-family: 'Inter', sans-serif;
 }
 
 .container {
     display: flex;
     flex-direction: column;
     height: 100vh;
+    background: linear-gradient(to bottom, #f8f9fa, #e9ecef);
+}
+
+.controls-container {
+    padding: 15px;
+    background: white;
+    box-shadow: 0 2px 15px rgba(0,0,0,0.1);
+    z-index: 1000;
 }
 
 .search-container {
-    padding: 10px;
-    background: #fff;
-    z-index: 1000;
     display: flex;
     gap: 10px;
+    margin-bottom: 10px;
 }
 
 #search-input {
     flex: 1;
-    padding: 8px;
-    border: 1px solid #ccc;
-    border-radius: 4px;
+    padding: 10px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s ease;
 }
 
-button {
-    padding: 8px 16px;
-    background: #4CAF50;
-    color: white;
+#search-input:focus {
+    border-color: #4a90e2;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(74,144,226,0.2);
+}
+
+.btn {
+    padding: 10px 20px;
     border: none;
-    border-radius: 4px;
+    border-radius: 8px;
     cursor: pointer;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    background: #4a90e2;
+    color: white;
 }
 
-button:hover {
-    background: #45a049;
+.btn:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 15px rgba(74,144,226,0.3);
+}
+
+.layer-controls {
+    display: flex;
+    gap: 8px;
+}
+
+.layer-btn {
+    padding: 8px 16px;
+    border: 2px solid #4a90e2;
+    border-radius: 6px;
+    background: white;
+    color: #4a90e2;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+}
+
+.layer-btn:hover {
+    background: #4a90e2;
+    color: white;
+    transform: scale(1.05);
+}
+
+.layer-btn.active {
+    background: #4a90e2;
+    color: white;
 }
 
 #map {
     flex: 1;
     width: 100%;
+    z-index: 1;
 }
 
-@media (max-width: 600px) {
+@media (max-width: 768px) {
+    .controls-container {
+        padding: 10px;
+    }
+
     .search-container {
         flex-direction: column;
     }
-    
-    button {
+
+    .layer-controls {
+        margin-top: 10px;
+        justify-content: space-between;
+    }
+
+    .btn, .layer-btn {
         width: 100%;
+        padding: 12px;
     }
 }

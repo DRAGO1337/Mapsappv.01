@@ -2,11 +2,39 @@
 // Initialize map centered on London
 const map = L.map('map').setView([51.505, -0.09], 13);
 
-// Add custom styled tiles
-L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
-    attribution: '©OpenStreetMap, ©CartoDB',
-    maxZoom: 19
-}).addTo(map);
+// Define tile layers
+const layers = {
+    street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenStreetMap contributors'
+    }),
+    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+        attribution: '© Esri'
+    }),
+    topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', {
+        attribution: '© OpenTopoMap contributors'
+    })
+};
+
+// Add default street layer
+layers.street.addTo(map);
+
+// Handle layer controls
+const layerButtons = document.querySelectorAll('.layer-btn');
+layerButtons.forEach(button => {
+    button.addEventListener('click', () => {
+        const layerType = button.dataset.layer;
+        
+        // Remove all layers
+        Object.values(layers).forEach(layer => map.removeLayer(layer));
+        
+        // Add selected layer
+        layers[layerType].addTo(map);
+        
+        // Update active state
+        layerButtons.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+    });
+});
 
 let markers = [];
 let routingControl = null;
@@ -18,11 +46,9 @@ map.on('click', (e) => {
     marker.bindPopup(popup).openPopup();
     markers.push(marker);
 
-    // If we have 2 markers, draw a route
     if (markers.length === 2) {
         drawRoute();
     }
-    // Reset markers after 2
     if (markers.length > 2) {
         markers.forEach(m => map.removeLayer(m));
         markers = [marker];
