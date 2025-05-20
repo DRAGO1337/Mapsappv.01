@@ -6,19 +6,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-geosearch@3.0.0/dist/geosearch.css"/>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
     <div class="app-container">
         <div class="top-bar">
-            <div class="search-box">
-                <div class="search-input-container">
-                    <input type="text" id="search-input" placeholder="Search locations...">
-                    <div id="search-results" class="search-results"></div>
-                </div>
-            </div>
             <div class="layer-controls">
                 <button class="layer-btn active" data-layer="street">Map</button>
                 <button class="layer-btn" data-layer="satellite">Satellite</button>
@@ -29,7 +22,6 @@
     </div>
     <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-    <script src="https://unpkg.com/leaflet-geosearch@3.0.0/dist/bundle.min.js"></script>
     <script src="main.js"></script>
 </body>
 </html>
