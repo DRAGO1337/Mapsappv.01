@@ -1,7 +1,7 @@
 // Initialize map
 const map = L.map('map').setView([51.505, -0.09], 13);
 
-// Define tile layers with modern styling
+// Define tile layers
 const layers = {
     street: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', {
         attribution: '©OpenStreetMap, ©CartoDB',
@@ -24,28 +24,25 @@ layers.street.addTo(map);
 const geocoder = L.Control.Geocoder.nominatim();
 const searchInput = document.getElementById('search-input');
 
-// Handle search input
-searchInput.addEventListener('keypress', async (e) => {
+// Handle search
+searchInput.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') {
         const query = searchInput.value;
-        try {
-            geocoder.geocode(query, results => {
-                if (results.length > 0) {
-                    const { center, name } = results[0];
-                    map.setView(center, 13);
-                    L.marker(center).addTo(map)
-                        .bindPopup(name)
-                        .openPopup();
-                }
-            });
-        } catch (error) {
-            console.error('Search failed:', error);
-        }
+        geocoder.geocode(query, results => {
+            if (results.length > 0) {
+                const { center, name } = results[0];
+                map.setView(center, 13);
+                L.marker(center)
+                    .addTo(map)
+                    .bindPopup(name)
+                    .openPopup();
+            }
+        });
     }
 });
 
 // Handle layer switching
-const layerButtons = document.querySelectorAll('.map-btn');
+const layerButtons = document.querySelectorAll('.layer-btn');
 layerButtons.forEach(button => {
     button.addEventListener('click', () => {
         const layerType = button.dataset.layer;
