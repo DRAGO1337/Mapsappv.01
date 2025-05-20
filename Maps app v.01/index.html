@@ -1,10 +1,24 @@
+
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Map App</title>
+    <title>Interactive Map App</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.css" />
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-<h1>Hello Maps</h1>
-<script src="main.js"></script>
+    <div class="container">
+        <div class="search-container">
+            <input type="text" id="search-input" placeholder="Search location...">
+            <button id="search-button">Search</button>
+            <button id="location-button">My Location</button>
+        </div>
+        <div id="map"></div>
+    </div>
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-routing-machine@3.2.12/dist/leaflet-routing-machine.js"></script>
+    <script src="main.js"></script>
 </body>
 </html>
