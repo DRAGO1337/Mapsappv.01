@@ -11,7 +11,7 @@
     --text-dark: #f8fafc;
     --shadow-premium: 0 12px 40px rgba(0, 0, 0, 0.12);
     --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --radius-squircle: 16px;
+    --radius-ios: 18px;
 }
 
 /* Hide Leaflet Branding */
@@ -21,35 +21,31 @@
 
 /* --- 2. BASE STYLES --- */
 html, body {
-    height: 100%;
-    width: 100%;
-    margin: 0;
-    padding: 0;
+    height: 100%; width: 100%;
+    margin: 0; padding: 0;
     overflow: hidden;
     background: #f1f5f9;
 }
 
 * {
     box-sizing: border-box;
-    font-family: 'Inter', 'SF Pro Display', -apple-system, sans-serif;
+    font-family: 'Inter', sans-serif;
 }
 
 #map {
     position: absolute;
-    top: 0; bottom: 0; left: 0; right: 0;
-    width: 100%; height: 100%;
+    inset: 0;
     z-index: 1;
-    background: #0f172a; /* Prevents white flash */
+    background: #0f172a;
 }
 
-/* --- THE BROKEN LAYER FIX --- */
-/* Only applies the inversion filter when the "map-dark-active" class is present */
-/* This prevents Satellite and Terrain from looking like a mess */
+/* --- BROKEN LAYER FIX --- */
+/* Only inverts when map-dark-active class is present (toggled via JS) */
 body.dark-theme.map-dark-active #map .leaflet-tile-pane {
     filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
 }
 
-/* --- 3. TOP CENTER SEARCH --- */
+/* --- 3. TOP CENTER SEARCH (FIXED & BEAUTIFIED) --- */
 .top-bar {
     position: fixed;
     top: 1.5rem;
@@ -64,55 +60,104 @@ body.dark-theme.map-dark-active #map .leaflet-tile-pane {
 .search-box {
     width: 100%;
     background: var(--bg-glass);
-    backdrop-filter: blur(16px);
-    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(20px);
+    -webkit-backdrop-filter: blur(20px);
     border: 1px solid var(--border-light);
-    border-radius: 20px;
-    padding: 4px 12px;
-    box-shadow: var(--shadow-premium);
+    border-radius: 24px;
+    padding: 6px 14px;
+    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.15);
     transition: var(--transition);
     pointer-events: auto;
+    position: relative;
+}
+
+.search-box:focus-within {
+    background: white;
+    border-color: var(--primary);
+    box-shadow: 0 15px 40px -10px rgba(37, 99, 235, 0.25);
 }
 
 .search-input-container {
     display: flex;
     align-items: center;
+    gap: 8px;
 }
 
 #search-input {
     width: 100%;
-    padding: 10px;
+    padding: 10px 0;
     border: none;
     background: transparent;
-    font-size: 15px;
+    font-size: 16px;
+    font-weight: 500;
     color: var(--text-main);
     outline: none;
+}
+
+/* The "X" Button Styling */
+.icon-button {
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--text-muted);
+    padding: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: 0.2s;
+    font-size: 18px;
+}
+
+.icon-button:hover {
+    color: #ef4444;
+    transform: scale(1.1);
+}
+
+/* Search Results Dropdown */
+.search-results {
+    position: absolute;
+    top: calc(100% + 12px);
+    left: 0; right: 0;
+    background: var(--bg-glass);
+    backdrop-filter: blur(25px);
+    -webkit-backdrop-filter: blur(25px);
+    border-radius: 20px;
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-premium);
+    max-height: 300px;
+    overflow-y: auto;
+    display: none;
+    z-index: 2000;
+}
+
+.search-result-item {
+    padding: 14px 20px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--text-main); /* Default dark text for light mode */
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+    transition: 0.2s;
+    display: flex;
+    align-items: center;
+}
+
+.search-result-item:hover {
+    background: rgba(37, 99, 235, 0.1);
+    color: var(--primary);
+    padding-left: 25px;
 }
 
 /* --- 4. POSITIONED CONTROLS --- */
 .custom-controls {
     position: fixed;
-    top: 1.5rem;
-    right: 1.5rem;
-    display: flex;
-    flex-direction: column;
-    gap: 12px;
+    top: 1.5rem; right: 1.5rem;
+    display: flex; flex-direction: column; gap: 12px;
     z-index: 1001;
 }
 
-.layer-controls-container {
-    position: fixed;
-    bottom: 1.5rem;
-    left: 1.5rem;
-    z-index: 1001;
-}
-
-.locate-me-container {
-    position: fixed;
-    bottom: 1.5rem;
-    right: 1.5rem;
-    z-index: 1001;
-}
+.layer-controls-container { position: fixed; bottom: 1.5rem; left: 1.5rem; z-index: 1001; }
+.locate-me-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 1001; }
 
 .control-btn {
     width: 48px; height: 48px;
@@ -127,10 +172,7 @@ body.dark-theme.map-dark-active #map .leaflet-tile-pane {
     color: var(--text-main);
 }
 
-.control-btn:hover {
-    transform: translateY(-2px);
-    background: white;
-}
+.control-btn:hover { transform: translateY(-2px); background: white; }
 
 .layer-controls {
     display: flex;
@@ -144,14 +186,10 @@ body.dark-theme.map-dark-active #map .leaflet-tile-pane {
 
 .layer-btn {
     padding: 8px 16px;
-    border: none;
-    background: transparent;
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    border-radius: 10px;
-    color: var(--text-muted);
-    transition: var(--transition);
+    border: none; background: transparent;
+    font-size: 13px; font-weight: 600;
+    cursor: pointer; border-radius: 10px;
+    color: var(--text-muted); transition: var(--transition);
 }
 
 .layer-btn.active {
@@ -160,16 +198,14 @@ body.dark-theme.map-dark-active #map .leaflet-tile-pane {
     box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-/* --- 5. PREMIUM AUTH FORM RESTORATION --- */
+/* --- 5. MODAL & AUTH UI --- */
 .meta-modal-bg {
     display: none;
-    position: fixed;
-    inset: 0;
+    position: fixed; inset: 0;
     background: rgba(15, 23, 42, 0.4);
     backdrop-filter: blur(12px);
     z-index: 99999;
-    justify-content: center;
-    align-items: center;
+    justify-content: center; align-items: center;
 }
 
 .auth-container {
@@ -186,40 +222,26 @@ body.dark-theme.map-dark-active #map .leaflet-tile-pane {
 
 .auth-icon-top {
     width: 60px; height: 60px;
-    background: #eff6ff;
-    color: var(--primary);
+    background: #eff6ff; color: var(--primary);
     border-radius: 20px;
     display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 20px;
-    font-size: 24px;
+    margin: 0 auto 20px; font-size: 24px;
 }
 
-/* Input Group Logic (Restoring the Icons/Padding) */
-.auth-input-group {
-    position: relative;
-    margin-bottom: 16px;
-    text-align: left;
-}
-
+.auth-input-group { position: relative; margin-bottom: 16px; text-align: left; }
 .auth-input-group i {
-    position: absolute;
-    left: 16px;
-    top: 50%;
-    transform: translateY(-50%);
-    color: var(--text-muted);
-    pointer-events: none;
+    position: absolute; left: 16px; top: 50%;
+    transform: translateY(-50%); color: var(--text-muted);
 }
 
 .auth-field {
     width: 100%;
-    padding: 14px 16px 14px 45px; /* Added left padding for icons */
+    padding: 14px 16px 14px 45px;
     border-radius: 14px;
     border: 1px solid #e2e8f0;
     background: #f8fafc;
-    font-size: 15px;
-    outline: none;
+    font-size: 15px; outline: none;
     transition: all 0.2s ease;
-    color: var(--text-main);
 }
 
 .auth-field:focus {
@@ -228,66 +250,66 @@ body.dark-theme.map-dark-active #map .leaflet-tile-pane {
     box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
 }
 
-/* Animation wrapper */
 .auth-content-wrapper {
     transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
-    opacity: 1;
-    transform: translateX(0);
 }
 
 .auth-slide-out { opacity: 0; transform: translateX(-20px); }
 .auth-slide-in { opacity: 0; transform: translateX(20px); }
 
 .btn-primary-auth {
-    width: 100%;
-    padding: 16px;
-    background: #1e293b;
-    color: white;
-    border: none;
-    border-radius: 14px;
-    font-weight: 700;
-    cursor: pointer;
-    transition: var(--transition);
+    width: 100%; padding: 16px;
+    background: #1e293b; color: white;
+    border: none; border-radius: 14px;
+    font-weight: 700; cursor: pointer; transition: var(--transition);
 }
 
-.btn-primary-auth:hover {
-    background: #000;
-    transform: translateY(-1px);
-}
+.btn-primary-auth:hover { background: #000; transform: translateY(-1px); }
 
 /* --- 6. DARK THEME OVERRIDES --- */
 body.dark-theme .search-box,
 body.dark-theme .control-btn,
 body.dark-theme .layer-controls,
-body.dark-theme .meta-modal-content,
 body.dark-theme .auth-container,
 body.dark-theme .search-results {
     background: var(--bg-glass-dark) !important;
     border-color: var(--border-dark);
-    color: var(--text-dark);
+    color: var(--text-dark) !important; /* Forces general text to white */
 }
 
-body.dark-theme .auth-field {
-    background: rgba(255, 255, 255, 0.05);
-    border-color: rgba(255, 255, 255, 0.1);
-    color: white;
+/* Specific fix for Search Input text */
+body.dark-theme #search-input {
+    color: #ffffff !important;
 }
 
-body.dark-theme .auth-field:focus {
-    border-color: #60a5fa;
-    background: rgba(255, 255, 255, 0.1);
+body.dark-theme #search-input::placeholder {
+    color: rgba(255, 255, 255, 0.5);
 }
 
-body.dark-theme .layer-btn.active {
-    background: var(--primary);
-    color: white;
-}
-
-body.dark-theme #search-input,
+/* Specific fix for Search Result Items */
 body.dark-theme .search-result-item {
-    color: white;
+    color: #f8fafc !important; /* Crisp off-white */
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
 }
 
+body.dark-theme .search-result-item i {
+    color: #94a3b8; /* Keep the icon slightly muted */
+}
+
+body.dark-theme .search-result-item:hover {
+    background: rgba(37, 99, 235, 0.2);
+    color: #ffffff !important;
+    box-shadow: inset 4px 0 0 var(--primary); /* Blue indicator on the left */
+}
+
+/* Fix for the "X" button in dark mode */
+body.dark-theme .icon-button {
+    color: rgba(255, 255, 255, 0.6);
+}
+
+body.dark-theme .icon-button:hover {
+    color: #ff4d4d;
+}
 /* --- 7. MISC --- */
 .close-x {
     position: absolute; right: 20px; top: 20px;

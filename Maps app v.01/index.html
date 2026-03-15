@@ -18,10 +18,12 @@
     <div class="search-box">
         <div class="search-input-container">
             <i class="fas fa-search" style="color: #94a3b8; margin-left: 10px;"></i>
-            <input type="text" id="search-input" placeholder="Search places...">
-            <button id="clear-search" class="icon-button"><i class="fas fa-times"></i></button>
+            <input type="text" id="search-input" placeholder="Search places..." autocomplete="off">
+            <button id="clear-search" class="icon-button" title="Clear search">
+                <i class="fas fa-times-circle"></i>
+            </button>
         </div>
-        <div class="search-results"></div>
+        <div class="search-results" id="search-results"></div>
     </div>
 </div>
 
