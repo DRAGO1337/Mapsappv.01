@@ -1,10 +1,14 @@
+const SUPABASE_URL = 'https://zevrtruxhekpzhrsefsp.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpldnJ0cnV4aGVrcHpocnNlZnNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1ODE4NDcsImV4cCI6MjA4OTE1Nzg0N30.OvqDoPIwAtw9ZJcVtlAAI4Yvc-UtYJxcuCmULLdAB74';
+const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
 // 1. Initialize map
 const map = L.map('map', {
     zoomControl: false
 }).setView([43.2102, 23.5529], 13); // Set to Vratsa default
 
 // --- GLOBAL VARIABLES ---
-let currentUserMarker = null; // Tracks your GPS dot to prevent duplicates and "Romania jumps"
+let currentUserMarker = null;
 
 // --- GLOBAL FUNCTIONS ---
 
@@ -35,46 +39,73 @@ window.closeMetaForm = function() {
     document.querySelectorAll('.meta-tag').forEach(t => t.checked = false);
 };
 
+// Modified to handle Supabase data structure
 function placeSavedMarker(pinData) {
     const marker = L.marker([pinData.lat, pinData.lng]).addTo(map);
+    // Handle tags if they are an array or a string
+    const displayTags = Array.isArray(pinData.tags) ? pinData.tags.join(', ') : pinData.tags;
+
     marker.bindPopup(`
         <div style="text-align:center;">
-            <strong>Saved Meta Pin</strong><br>
-            Tags: ${pinData.tags.length > 0 ? pinData.tags.join(', ') : 'None'}<br>
-            <small>${pinData.lat}, ${pinData.lng}</small>
+            <strong>Meta Pin</strong><br>
+            Tags: ${displayTags || 'None'}<br>
+            <small>${pinData.lat.toFixed(4)}, ${pinData.lng.toFixed(4)}</small>
         </div>
     `);
 }
 
-function loadSavedPins() {
-    const savedPins = JSON.parse(localStorage.getItem('myPins') || '[]');
-    savedPins.forEach(pin => placeSavedMarker(pin));
+// NEW: Load pins from Supabase Cloud instead of LocalStorage
+async function loadSavedPins() {
+    const { data, error } = await supabase
+        .from('metas')
+        .select('*');
+
+    if (error) {
+        console.error("Error loading pins:", error.message);
+    } else {
+        data.forEach(pin => placeSavedMarker(pin));
+    }
+}
+
+// NEW: Save pin to Supabase Cloud
+async function savePinToCloud(lat, lng, tags) {
+    const { data, error } = await supabase
+        .from('metas')
+        .insert([
+            { lat, lng, tags, image_url: "" }
+        ]);
+
+    if (error) {
+        alert("Error saving to cloud: " + error.message);
+    } else {
+        console.log("Pin saved to Ireland database!");
+    }
 }
 
 // --- INITIALIZE EVENT LISTENERS ---
 
 document.addEventListener('DOMContentLoaded', () => {
-    loadSavedPins();
+    loadSavedPins(); // Load cloud pins on start
 
     if (sessionStorage.getItem('termsAccepted') === 'true') {
         const disclaimer = document.getElementById('disclaimerModal');
         if (disclaimer) disclaimer.style.display = 'none';
     }
 
-    // Submit Pin logic
+    // Submit Pin logic (Updated for Supabase)
     const submitBtn = document.getElementById('finalSubmit');
     if (submitBtn) {
-        submitBtn.onclick = function() {
+        submitBtn.onclick = async function() {
             const lat = parseFloat(document.getElementById('modal-lat')?.value);
             const lng = parseFloat(document.getElementById('modal-lng')?.value);
             const selectedTags = Array.from(document.querySelectorAll('.meta-tag:checked')).map(t => t.value);
 
-            const newPin = { lat, lng, tags: selectedTags, timestamp: Date.now() };
-            const currentPins = JSON.parse(localStorage.getItem('myPins') || '[]');
-            currentPins.push(newPin);
-            localStorage.setItem('myPins', JSON.stringify(currentPins));
+            // 1. Save to Cloud
+            await savePinToCloud(lat, lng, selectedTags);
 
-            placeSavedMarker(newPin);
+            // 2. Add to map locally immediately
+            placeSavedMarker({ lat, lng, tags: selectedTags });
+
             window.closeMetaForm();
         };
     }
@@ -160,17 +191,12 @@ function displaySearchResults(data) {
     data.forEach((item) => {
         const div = document.createElement('div');
         div.className = 'search-result-item';
-
-        const name = item.display_name;
-        div.textContent = name;
-        div.title = name;
-
+        div.textContent = item.display_name;
         div.onclick = () => {
             const lat = parseFloat(item.lat);
             const lon = parseFloat(item.lon);
-            const latlng = [lat, lon];
-            map.setView(latlng, 14);
-            L.marker(latlng).addTo(map).bindPopup(`<b>${item.display_name}</b>`).openPopup();
+            map.setView([lat, lon], 14);
+            L.marker([lat, lon]).addTo(map).bindPopup(`<b>${item.display_name}</b>`).openPopup();
             searchResultsContainer.style.setProperty('display', 'none', 'important');
             searchInput.value = item.display_name;
         };
@@ -182,13 +208,8 @@ function displaySearchResults(data) {
 document.getElementById('current-location').onclick = function() {
     navigator.geolocation.getCurrentPosition((pos) => {
         const latlng = [pos.coords.latitude, pos.coords.longitude];
+        if (currentUserMarker) map.removeLayer(currentUserMarker);
 
-        if (currentUserMarker) {
-            map.removeLayer(currentUserMarker);
-        }
-
-        // Use an inner div for the pulse animation so Leaflet's zoom transforms
-        // on the outer wrapper don't conflict with the animation's own transform.
         const pulseIcon = L.divIcon({
             className: 'location-marker-wrapper',
             html: '<div class="location-pulse"></div>',
@@ -197,16 +218,10 @@ document.getElementById('current-location').onclick = function() {
         });
 
         map.setView(latlng, 17);
-
         currentUserMarker = L.marker(latlng, { icon: pulseIcon }).addTo(map);
-        currentUserMarker.bindPopup('<b>You are here</b>', {
-            offset: L.point(0, -12),
-            closeButton: false
-        }).openPopup();
+        currentUserMarker.bindPopup('<b>You are here</b>').openPopup();
 
-    }, () => {
-        alert("Location denied or unavailable.");
-    }, { enableHighAccuracy: true });
+    }, () => alert("Location denied."), { enableHighAccuracy: true });
 };
 
 // Layer switching
@@ -227,3 +242,12 @@ function debounce(func, wait) {
         timeout = setTimeout(() => func(...args), wait);
     };
 }
+
+// REALTIME SUBSCRIPTION (The "Pro" feature)
+supabase
+  .channel('public:metas')
+  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'metas' }, payload => {
+    console.log('New pin received in real-time!', payload.new);
+    placeSavedMarker(payload.new);
+  })
+  .subscribe();
