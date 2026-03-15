@@ -1,9 +1,10 @@
-
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
+    <meta charset="UTF-8">
     <title>Modern Map App</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
@@ -11,41 +12,112 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
-    <div class="app-container">
-        <div class="top-bar">
-            <div class="search-box">
-                <div class="search-input-container">
-                    <input type="text" id="search-input" placeholder="Search places...">
-                    <button id="clear-search" class="icon-button"><i class="fas fa-times"></i></button>
-                </div>
-                <div class="search-results"></div>
-            </div>
-            <div class="controls">
-                <button id="current-location" class="control-btn" title="My Location">
-                    <i class="fas fa-location-arrow"></i>
-                </button>
-                <button id="bookmark-location" class="control-btn" title="Save Location">
-                    <i class="fas fa-bookmark"></i>
-                </button>
-            </div>
-            <div class="layer-controls">
-                <button class="layer-btn active" data-layer="street">Map</button>
-                <button class="layer-btn" data-layer="satellite">Satellite</button>
-                <button class="layer-btn" data-layer="topo">Terrain</button>
-            </div>
+
+<div id="disclaimerModal" class="meta-modal-bg" style="display: flex;">
+    <div class="meta-modal-content" style="text-align: center; border-top: 5px solid #2563eb;">
+        <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: #2563eb; margin-bottom: 15px;"></i>
+        <h2>Welcome to Map App</h2>
+        <div style="text-align: left; margin: 15px 0; line-height: 1.5; color: #444;">
+            <p><strong>Please Read Carefully:</strong></p>
+            <ul>
+                <li>This tool is for <strong>educational purposes</strong> only.</li>
+                <li>Do <strong>NOT</strong> use this tool during competitive GeoGuessr games or tournaments.</li>
+                <li>Respect the fair play rules of the GeoGuessr community.</li>
+            </ul>
         </div>
-        <div id="map"></div>
-        <div id="zoom-level" class="zoom-indicator"></div>
-        <div id="loading-indicator" class="loading-hidden">
-            <div class="spinner"></div>
+        <button id="acceptTerms" onclick="window.acceptDisclaimer()" style="width: 100%; background: #2563eb; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1rem;">
+            I UNDERSTAND & ACCEPT
+        </button>
+    </div>
+</div>
+
+<div class="app-container">
+    <div class="top-bar">
+        <div class="search-box">
+            <div class="search-input-container">
+                <input type="text" id="search-input" placeholder="Search places...">
+                <button id="clear-search" class="icon-button"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="search-results"></div>
         </div>
-        <div id="bookmarks-panel" class="bookmarks-panel hidden">
-            <h3>Saved Locations</h3>
-            <div id="bookmarks-list"></div>
+
+        <div class="controls">
+            <button id="current-location" class="control-btn" title="My Location">
+                <i class="fas fa-location-arrow"></i>
+            </button>
+            <button id="bookmark-location" class="control-btn" title="Save Location">
+                <i class="fas fa-bookmark"></i>
+            </button>
+        </div>
+
+        <div class="layer-controls">
+            <button class="layer-btn active" data-layer="street">Map</button>
+            <button class="layer-btn" data-layer="satellite">Satellite</button>
+            <button class="layer-btn" data-layer="topo">Terrain</button>
         </div>
     </div>
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-    <script src="main.js"></script>
+
+    <div id="map"></div>
+    <div id="zoom-level" class="zoom-indicator">Zoom: 13</div>
+
+    <div id="loading-indicator" class="loading-hidden">
+        <div class="spinner"></div>
+    </div>
+
+    <div id="bookmarks-panel" class="bookmarks-panel hidden">
+        <h3>Saved Locations</h3>
+        <div id="bookmarks-list"></div>
+    </div>
+</div>
+
+<div id="metaModal" class="meta-modal-bg" style="display: none;">
+    <div class="meta-modal-content">
+        <span class="close-x" onclick="window.closeMetaForm()">&times;</span>
+
+        <h3>Report Location</h3>
+        <p style="font-size: 0.9em; color: #555;">
+            Pinning: <strong id="display-coords">0.00, 0.00</strong>
+        </p>
+
+        <div style="margin: 15px 0; text-align: center;">
+            <img id="image-preview" src=""
+                 style="display: none; width: 100%; max-height: 200px; border-radius: 8px; object-fit: cover; border: 2px solid #2563eb;">
+        </div>
+
+        <input type="hidden" id="modal-lat">
+        <input type="hidden" id="modal-lng">
+
+        <div style="text-align: left; margin-top: 15px;">
+            <label style="display: block; font-weight: bold; margin-bottom: 5px;">Upload Image:</label>
+            <input type="file" id="metaImage" accept="image/*" style="width: 100%; margin-bottom: 15px;">
+
+            <label style="display: block; font-weight: bold; margin-bottom: 10px;">Tags:</label>
+            <div class="tag-grid">
+                <label>
+                    <input type="checkbox" class="meta-tag" value="ghana">
+                    <span class="tag-label">🇬🇭 Ghana Bug</span>
+                </label>
+                <label>
+                    <input type="checkbox" class="meta-tag" value="car">
+                    <span class="tag-label">🚗 Car Meta</span>
+                </label>
+                <label>
+                    <input type="checkbox" class="meta-tag" value="cam">
+                    <span class="tag-label">📸 Cam Glitch</span>
+                </label>
+            </div>
+        </div>
+
+        <div style="margin-top: 20px; display: flex; gap: 10px;">
+            <button onclick="window.closeMetaForm()" style="flex: 1; padding: 10px; cursor: pointer; border: 1px solid #ccc; border-radius: 4px;">Cancel</button>
+            <button id="finalSubmit" style="flex: 1; padding: 10px; cursor: pointer; background: #2563eb; color: white; border: none; border-radius: 4px; font-weight: bold;">Submit Pin</button>
+        </div>
+    </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+<script src="main.js"></script>
+
 </body>
 </html>

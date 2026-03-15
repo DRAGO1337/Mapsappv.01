@@ -1,4 +1,4 @@
-
+/* --- BASE STYLES --- */
 * {
     margin: 0;
     padding: 0;
@@ -10,13 +10,21 @@
     position: relative;
     height: 100vh;
     width: 100vw;
+    overflow: hidden;
 }
 
+#map {
+    height: 100%;
+    width: 100%;
+    z-index: 1;
+}
+
+/* --- TOP BAR & SEARCH --- */
 .top-bar {
     position: absolute;
     top: 1rem;
     left: 1rem;
-    z-index: 1000;
+    z-index: 10000;
     display: flex;
     gap: 0.5rem;
     align-items: flex-start;
@@ -58,75 +66,76 @@
     cursor: pointer;
     color: #666;
     padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
+/* --- SEARCH RESULTS DROPDOWN (FIXED) --- */
 .search-results {
     position: absolute;
-    top: 100%;
+    top: calc(100% + 5px);
     left: 0;
     right: 0;
-    background: white;
+    background: white !important;
     border-radius: 8px;
-    margin-top: 0.5rem;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
     display: none;
     max-height: 300px;
     overflow-y: auto;
+    /* Increased z-index to stay above Leaflet markers and controls */
+    z-index: 10001 !important;
 }
 
 .search-result-item {
-    padding: 0.75rem 1rem;
+    padding: 12px 15px;
     cursor: pointer;
+    font-size: 14px;
+    border-bottom: 1px solid #eee;
+    color: #333;
     transition: background 0.2s;
+    text-align: left;
 }
 
 .search-result-item:hover {
-    background: #f5f5f5;
+    background: #f0f7ff;
+    color: #2563eb;
 }
 
-.controls {
-    display: flex;
-    gap: 0.5rem;
+.search-result-item:last-child {
+    border-bottom: none;
+}
+
+/* --- CONTROLS --- */
+.control-btn, .layer-controls {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+    border: none;
 }
 
 .control-btn {
     padding: 0.75rem;
-    border: none;
-    background: white;
-    border-radius: 8px;
     cursor: pointer;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
     transition: all 0.3s ease;
 }
 
 .control-btn:hover {
     transform: scale(1.05);
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
 }
 
 .layer-controls {
     display: flex;
-    background: white;
     padding: 0.25rem;
-    border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
 .layer-btn {
     padding: 0.5rem 1rem;
     border: none;
     background: transparent;
-    color: #5f6368;
     font-size: 13px;
-    font-weight: 500;
     cursor: pointer;
     border-radius: 4px;
-    transition: all 0.3s ease;
-}
-
-.layer-btn:hover {
-    background: #f1f3f4;
-    transform: scale(1.05);
 }
 
 .layer-btn.active {
@@ -134,33 +143,107 @@
     color: #1a73e8;
 }
 
+/* --- MODAL SYSTEM --- */
+.meta-modal-bg {
+    display: none;
+    position: fixed !important;
+    top: 0; left: 0;
+    width: 100vw; height: 100vh;
+    background: rgba(0, 0, 0, 0.7) !important;
+    z-index: 1000000 !important;
+    justify-content: center;
+    align-items: center;
+}
+
+.meta-modal-content {
+    background: white;
+    padding: 30px;
+    border-radius: 15px;
+    width: 400px;
+    max-width: 90%;
+    position: relative;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    animation: modalPop 0.3s ease-out;
+}
+
+@keyframes modalPop {
+    from { opacity: 0; transform: scale(0.9); }
+    to { opacity: 1; transform: scale(1); }
+}
+
+.close-x {
+    position: absolute;
+    right: 15px; top: 10px;
+    font-size: 28px;
+    cursor: pointer;
+    color: #aaa;
+}
+
+/* --- PILL TAGS --- */
+.tag-grid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+.meta-tag {
+    display: none;
+}
+
+.tag-label {
+    display: inline-block;
+    padding: 6px 14px;
+    border: 2px solid #2563eb;
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 12px;
+    font-weight: 500;
+    color: #2563eb;
+    background: white;
+    transition: all 0.2s ease;
+}
+
+.meta-tag:checked + .tag-label {
+    background: #2563eb;
+    color: white;
+}
+
+/* --- PULSE & PINS (FIXED FOR ZOOM) --- */
+.location-pulse {
+    width: 16px !important;
+    height: 16px !important;
+    background: #1a73e8 !important;
+    border: 3px solid white !important;
+    border-radius: 50%;
+    box-shadow: 0 0 10px rgba(0,0,0,0.5);
+    animation: pulse 2s infinite;
+    /* FIXED: Anchors the scaling to the center of the dot */
+    transform-origin: center;
+    display: block;
+}
+
+@keyframes pulse {
+    0% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(26, 115, 232, 0.7); }
+    70% { transform: scale(1.1); box-shadow: 0 0 0 15px rgba(26, 115, 232, 0); }
+    100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(26, 115, 232, 0); }
+}
+
+.custom-pin {
+    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));
+}
+
+/* --- MISC --- */
 .zoom-indicator {
     position: absolute;
     bottom: 1rem;
     left: 1rem;
-    background: rgba(255, 255, 255, 0.9);
+    background: white;
     padding: 0.5rem;
     border-radius: 4px;
     font-size: 12px;
     z-index: 1000;
-}
-
-.loading-indicator {
-    position: absolute;
-    top: 50%;
-    left: 50%;
-    transform: translate(-50%, -50%);
-    z-index: 1000;
-    background: rgba(255, 255, 255, 0.9);
-    padding: 1rem;
-    border-radius: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
-.loading-hidden {
-    display: none;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
 }
 
 .spinner {
@@ -172,58 +255,4 @@
     animation: spin 1s linear infinite;
 }
 
-.bookmarks-panel {
-    position: absolute;
-    top: 1rem;
-    right: 1rem;
-    background: white;
-    border-radius: 8px;
-    padding: 1rem;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    z-index: 1000;
-    width: 250px;
-    max-height: 400px;
-    overflow-y: auto;
-}
-
-.bookmarks-panel.hidden {
-    display: none;
-}
-
-#bookmarks-list {
-    margin-top: 1rem;
-}
-
-.bookmark-item {
-    padding: 0.75rem;
-    cursor: pointer;
-    border-bottom: 1px solid #eee;
-    transition: background 0.2s;
-}
-
-.bookmark-item:hover {
-    background: #f5f5f5;
-}
-
-#map {
-    height: 100%;
-    width: 100%;
-}
-
-@keyframes spin {
-    0% { transform: rotate(0deg); }
-    100% { transform: rotate(360deg); }
-}
-
-@media (max-width: 768px) {
-    .top-bar {
-        flex-direction: column;
-        left: 0.5rem;
-        right: 0.5rem;
-    }
-
-    .search-box {
-        min-width: unset;
-        width: 100%;
-    }
-}
+@keyframes spin { 100% { transform: rotate(360deg); } }
