@@ -1,253 +1,249 @@
+// --- 1. CONFIGURATION ---
 const SUPABASE_URL = 'https://zevrtruxhekpzhrsefsp.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpldnJ0cnV4aGVrcHpocnNlZnNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1ODE4NDcsImV4cCI6MjA4OTE1Nzg0N30.OvqDoPIwAtw9ZJcVtlAAI4Yvc-UtYJxcuCmULLdAB74';
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-// 1. Initialize map
+if (!window.supabaseClient) {
+    window.supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+}
+var supabase = window.supabaseClient;
+
+// --- 2. MAP INITIALIZATION & LAYERS ---
 const map = L.map('map', {
-    zoomControl: false
-}).setView([43.2102, 23.5529], 13); // Set to Vratsa default
+    zoomControl: false,
+    attributionControl: false
+}).setView([43.2102, 23.5529], 13);
 
-// --- GLOBAL VARIABLES ---
-let currentUserMarker = null;
+// Layer Definitions
+const layers = {
+    street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
+    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}'),
+    topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png')
+};
 
-// --- GLOBAL FUNCTIONS ---
+// Set Default Layer
+layers.street.addTo(map);
 
-window.acceptDisclaimer = function() {
-    const disclaimer = document.getElementById('disclaimerModal');
-    if (disclaimer) {
-        disclaimer.style.setProperty('display', 'none', 'important');
-        sessionStorage.setItem('termsAccepted', 'true');
+/**
+ * LAYER GUARD: Automatically manages the CSS filter.
+ * Street map gets the 'map-dark-active' class (to allow inversion).
+ * Satellite/Terrain remove it so colors look natural.
+ */
+function handleLayerFilter(layerType) {
+    if (layerType === 'street') {
+        document.body.classList.add('map-dark-active');
+    } else {
+        document.body.classList.remove('map-dark-active');
     }
+}
+
+// Set initial filter state
+handleLayerFilter('street');
+
+// Layer Switcher Logic
+document.querySelectorAll('.layer-btn').forEach(btn => {
+    btn.onclick = function() {
+        const type = this.getAttribute('data-layer');
+        // Remove all layers first
+        Object.values(layers).forEach(layer => map.removeLayer(layer));
+        // Add selected layer
+        layers[type].addTo(map);
+
+        // Fix for "broken" satellite/terrain colors
+        handleLayerFilter(type);
+
+        // UI Update
+        document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+    };
+});
+
+// --- 3. THEME LOGIC ---
+const themeToggle = document.getElementById('theme-toggle');
+
+function applyTheme(theme) {
+    const icon = themeToggle.querySelector('i');
+    if (theme === 'dark') {
+        document.body.classList.add('dark-theme');
+        icon.classList.replace('fa-moon', 'fa-sun');
+    } else {
+        document.body.classList.remove('dark-theme');
+        icon.classList.replace('fa-sun', 'fa-moon');
+    }
+}
+
+themeToggle.onclick = () => {
+    const newTheme = document.body.classList.contains('dark-theme') ? 'light' : 'dark';
+    localStorage.setItem('map-app-theme', newTheme);
+    applyTheme(newTheme);
 };
 
-window.openMetaForm = function(lat, lng) {
-    const modal = document.getElementById('metaModal');
-    if (!modal) return;
-    document.getElementById('display-coords').innerText = lat + ", " + lng;
-    document.getElementById('modal-lat').value = lat;
-    document.getElementById('modal-lng').value = lng;
-    modal.style.setProperty('display', 'flex', 'important');
+applyTheme(localStorage.getItem('map-app-theme') || 'light');
+
+// --- 4. LOCATE ME LOGIC ---
+document.getElementById('current-location').onclick = () => {
+    map.locate({setView: true, maxZoom: 16});
 };
 
-window.closeMetaForm = function() {
-    const modal = document.getElementById('metaModal');
-    const previewImg = document.getElementById('image-preview');
-    const fileInput = document.getElementById('metaImage');
-    if (modal) modal.style.setProperty('display', 'none', 'important');
-    if (previewImg) { previewImg.src = ""; previewImg.style.display = 'none'; }
-    if (fileInput) fileInput.value = "";
-    document.querySelectorAll('.meta-tag').forEach(t => t.checked = false);
-};
+map.on('locationfound', (e) => {
+    L.circle(e.latlng, e.accuracy / 2).addTo(map);
+    L.marker(e.latlng).addTo(map).bindPopup("You are here").openPopup();
+});
 
-// Modified to handle Supabase data structure
+map.on('locationerror', (e) => alert("Location access denied or unavailable."));
+
+// --- 5. CORE MARKER FUNCTIONS ---
 function placeSavedMarker(pinData) {
+    if (!pinData.lat || !pinData.lng) return;
     const marker = L.marker([pinData.lat, pinData.lng]).addTo(map);
-    // Handle tags if they are an array or a string
-    const displayTags = Array.isArray(pinData.tags) ? pinData.tags.join(', ') : pinData.tags;
+    const tags = Array.isArray(pinData.tags) ? pinData.tags.join(', ') : (pinData.tags || 'None');
 
     marker.bindPopup(`
-        <div style="text-align:center;">
-            <strong>Meta Pin</strong><br>
-            Tags: ${displayTags || 'None'}<br>
-            <small>${pinData.lat.toFixed(4)}, ${pinData.lng.toFixed(4)}</small>
+        <div style="text-align:center; padding: 5px;">
+            <strong style="color: #2563eb; font-size: 14px;">Meta Pin</strong><br>
+            <div style="margin: 5px 0; font-size: 12px;"><b>Tags:</b> ${tags}</div>
+            <code style="font-size: 10px; color: #64748b;">${pinData.lat.toFixed(6)}, ${pinData.lng.toFixed(6)}</code>
         </div>
     `);
 }
 
-// NEW: Load pins from Supabase Cloud instead of LocalStorage
 async function loadSavedPins() {
-    const { data, error } = await supabase
-        .from('metas')
-        .select('*');
-
-    if (error) {
-        console.error("Error loading pins:", error.message);
-    } else {
-        data.forEach(pin => placeSavedMarker(pin));
-    }
+    const { data, error } = await supabase.from('metas').select('*');
+    if (data) data.forEach(pin => placeSavedMarker(pin));
 }
 
-// NEW: Save pin to Supabase Cloud
 async function savePinToCloud(lat, lng, tags) {
-    const { data, error } = await supabase
-        .from('metas')
-        .insert([
-            { lat, lng, tags, image_url: "" }
-        ]);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { showAuthRequired(); return; }
 
-    if (error) {
-        alert("Error saving to cloud: " + error.message);
-    } else {
-        console.log("Pin saved to Ireland database!");
-    }
+    const { error } = await supabase.from('metas').insert([{ lat, lng, tags, image_url: "" }]);
+    if (error) alert("Upload failed: " + error.message);
 }
 
-// --- INITIALIZE EVENT LISTENERS ---
+function showAuthRequired() {
+    document.getElementById('auth-title').innerText = "Account Required";
+    document.getElementById('auth-subtitle').innerText = "Please sign in to place pins.";
+    document.getElementById('loginModal').style.display = 'flex';
+}
 
+// --- 6. AUTHENTICATION & SLIDE ANIMATION ---
+let isSignUpMode = false;
+const toggleAuthBtn = document.getElementById('toggle-auth');
+
+if (toggleAuthBtn) {
+    toggleAuthBtn.onclick = (e) => {
+        e.preventDefault();
+        const wrapper = document.querySelector('.auth-content-wrapper');
+
+        // 1. Slide current content out to the left
+        wrapper.classList.add('auth-slide-out');
+
+        setTimeout(() => {
+            isSignUpMode = !isSignUpMode;
+
+            // 2. Change content while invisible
+            document.getElementById('auth-title').innerText = isSignUpMode ? "Join us" : "Sign in";
+            document.getElementById('auth-subtitle').innerText = isSignUpMode ? "Create a new account." : "Manage your GeoGuessr metas.";
+            document.getElementById('auth-action-btn').innerText = isSignUpMode ? "Create Account" : "Get Started";
+            document.getElementById('toggle-auth').innerText = isSignUpMode ? "Already have an account? Sign In" : "Don't have an account? Create one";
+
+            // 3. Move wrapper to the right (off-screen) and prepare for entry
+            wrapper.classList.remove('auth-slide-out');
+            wrapper.classList.add('auth-slide-in');
+
+            // 4. Slide back into the center
+            setTimeout(() => {
+                wrapper.classList.remove('auth-slide-in');
+            }, 50);
+        }, 300);
+    };
+}
+
+document.getElementById('auth-action-btn').onclick = async () => {
+    const email = document.getElementById('login-email').value;
+    const password = document.getElementById('login-password').value;
+    const btn = document.getElementById('auth-action-btn');
+
+    if (!email || !password) return alert("Fields cannot be empty");
+
+    const originalText = btn.innerText;
+    btn.innerText = "Processing...";
+
+    let result = isSignUpMode
+        ? await supabase.auth.signUp({ email, password })
+        : await supabase.auth.signInWithPassword({ email, password });
+
+    if (result.error) {
+        alert(result.error.message);
+        btn.innerText = originalText;
+    } else {
+        location.reload();
+    }
+};
+
+document.getElementById('doLogout').onclick = async () => {
+    await supabase.auth.signOut();
+    location.reload();
+};
+
+// --- 7. INITIALIZE ---
 document.addEventListener('DOMContentLoaded', () => {
-    loadSavedPins(); // Load cloud pins on start
+    loadSavedPins();
 
+    // Check Auth State for UI buttons
+    supabase.auth.getUser().then(({data}) => {
+        if (data.user) {
+            document.getElementById('open-login').style.display = 'none';
+            document.getElementById('doLogout').style.display = 'flex';
+        }
+    });
+
+    // Handle Disclaimer
     if (sessionStorage.getItem('termsAccepted') === 'true') {
-        const disclaimer = document.getElementById('disclaimerModal');
-        if (disclaimer) disclaimer.style.display = 'none';
+        document.getElementById('disclaimerModal').style.display = 'none';
     }
 
-    // Submit Pin logic (Updated for Supabase)
-    const submitBtn = document.getElementById('finalSubmit');
-    if (submitBtn) {
-        submitBtn.onclick = async function() {
-            const lat = parseFloat(document.getElementById('modal-lat')?.value);
-            const lng = parseFloat(document.getElementById('modal-lng')?.value);
-            const selectedTags = Array.from(document.querySelectorAll('.meta-tag:checked')).map(t => t.value);
+    document.getElementById('open-login').onclick = () => {
+        document.getElementById('loginModal').style.display = 'flex';
+    };
 
-            // 1. Save to Cloud
-            await savePinToCloud(lat, lng, selectedTags);
-
-            // 2. Add to map locally immediately
-            placeSavedMarker({ lat, lng, tags: selectedTags });
-
-            window.closeMetaForm();
-        };
-    }
+    document.getElementById('finalSubmit').onclick = async function() {
+        const lat = parseFloat(document.getElementById('modal-lat').value);
+        const lng = parseFloat(document.getElementById('modal-lng').value);
+        const tags = Array.from(document.querySelectorAll('.meta-tag:checked')).map(t => t.value);
+        await savePinToCloud(lat, lng, tags);
+        window.closeMetaForm();
+    };
 });
 
-// --- MAP UI & CONTROLS ---
-
-L.control.zoom({ position: 'topright' }).addTo(map);
-
-const layers = {
-    street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OSM' }),
-    satellite: L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri' }),
-    topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png', { attribution: '© OpenTopoMap' })
+window.acceptDisclaimer = () => {
+    document.getElementById('disclaimerModal').style.display = 'none';
+    sessionStorage.setItem('termsAccepted', 'true');
 };
-layers.street.addTo(map);
 
-map.on('contextmenu', function(e) {
+window.openMetaForm = (lat, lng) => {
+    document.getElementById('display-coords').innerText = lat + ", " + lng;
+    document.getElementById('modal-lat').value = lat;
+    document.getElementById('modal-lng').value = lng;
+    document.getElementById('metaModal').style.display = 'flex';
+};
+
+window.closeMetaForm = () => {
+    document.getElementById('metaModal').style.display = 'none';
+    document.querySelectorAll('.meta-tag').forEach(t => t.checked = false);
+};
+
+// Context Menu (Right Click)
+map.on('contextmenu', (e) => {
     const lat = e.latlng.lat.toFixed(6);
     const lng = e.latlng.lng.toFixed(6);
     L.popup().setLatLng(e.latlng).setContent(`
         <div style="text-align: center;">
-            <h4 style="margin-bottom: 8px;">Set a meta</h4>
-            <button onclick="window.openMetaForm(${lat}, ${lng})" style="background: #2563eb; color: white; border: none; padding: 6px 12px; border-radius: 4px; cursor: pointer;">ADD</button>
+            <button onclick="window.openMetaForm(${lat}, ${lng})" class="btn-primary-auth" style="padding: 8px 16px; font-size: 12px; margin-top: 0;">ADD PIN</button>
         </div>
     `).openOn(map);
 });
 
-// --- SEARCH & GEOLOCATION ---
-const searchInput = document.getElementById('search-input');
-const searchResultsContainer = document.querySelector('.search-results');
-const clearSearchBtn = document.getElementById('clear-search');
-
-if (clearSearchBtn) {
-    clearSearchBtn.onclick = (e) => {
-        e.preventDefault();
-        searchInput.value = '';
-        searchResultsContainer.style.setProperty('display', 'none', 'important');
-    };
-}
-
-if (searchInput) {
-    searchInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') {
-            const query = searchInput.value.trim();
-            if (query.length >= 2) performSearch(query);
-        }
-    });
-
-    searchInput.addEventListener('input', debounce((e) => {
-        const query = e.target.value.trim();
-        if (query.length < 2) {
-            searchResultsContainer.style.setProperty('display', 'none', 'important');
-            return;
-        }
-        performSearch(query);
-    }, 400));
-}
-
-function performSearch(query) {
-    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=6&addressdetails=1`;
-    fetch(url, {
-        headers: { 'Accept-Language': 'en', 'Accept': 'application/json' }
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data && data.length > 0) {
-            displaySearchResults(data);
-        } else {
-            searchResultsContainer.innerHTML = '<div class="search-result-item" style="color:#888;">No results found.</div>';
-            searchResultsContainer.style.setProperty('display', 'block', 'important');
-        }
-    })
-    .catch(() => {
-        searchResultsContainer.innerHTML = '<div class="search-result-item" style="color:#c00;">Search unavailable.</div>';
-        searchResultsContainer.style.setProperty('display', 'block', 'important');
-    });
-}
-
-function displaySearchResults(data) {
-    searchResultsContainer.innerHTML = '';
-    searchResultsContainer.style.setProperty('display', 'block', 'important');
-
-    data.forEach((item) => {
-        const div = document.createElement('div');
-        div.className = 'search-result-item';
-        div.textContent = item.display_name;
-        div.onclick = () => {
-            const lat = parseFloat(item.lat);
-            const lon = parseFloat(item.lon);
-            map.setView([lat, lon], 14);
-            L.marker([lat, lon]).addTo(map).bindPopup(`<b>${item.display_name}</b>`).openPopup();
-            searchResultsContainer.style.setProperty('display', 'none', 'important');
-            searchInput.value = item.display_name;
-        };
-        searchResultsContainer.appendChild(div);
-    });
-}
-
-// LOCATE ME
-document.getElementById('current-location').onclick = function() {
-    navigator.geolocation.getCurrentPosition((pos) => {
-        const latlng = [pos.coords.latitude, pos.coords.longitude];
-        if (currentUserMarker) map.removeLayer(currentUserMarker);
-
-        const pulseIcon = L.divIcon({
-            className: 'location-marker-wrapper',
-            html: '<div class="location-pulse"></div>',
-            iconSize: [20, 20],
-            iconAnchor: [10, 10]
-        });
-
-        map.setView(latlng, 17);
-        currentUserMarker = L.marker(latlng, { icon: pulseIcon }).addTo(map);
-        currentUserMarker.bindPopup('<b>You are here</b>').openPopup();
-
-    }, () => alert("Location denied."), { enableHighAccuracy: true });
-};
-
-// Layer switching
-document.querySelectorAll('.layer-btn').forEach(button => {
-    button.addEventListener('click', () => {
-        const layerType = button.dataset.layer;
-        Object.values(layers).forEach(l => map.removeLayer(l));
-        layers[layerType].addTo(map);
-        document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
-        button.classList.add('active');
-    });
-});
-
-function debounce(func, wait) {
-    let timeout;
-    return (...args) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func(...args), wait);
-    };
-}
-
-// REALTIME SUBSCRIPTION (The "Pro" feature)
-supabase
-  .channel('public:metas')
-  .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'metas' }, payload => {
-    console.log('New pin received in real-time!', payload.new);
-    placeSavedMarker(payload.new);
-  })
-  .subscribe();
+// Realtime Sync
+supabase.channel('public:metas').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'metas' }, p => {
+    placeSavedMarker(p.new);
+}).subscribe();

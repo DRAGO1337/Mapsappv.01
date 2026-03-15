@@ -7,67 +7,104 @@
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 </head>
 <body>
 
-<div id="disclaimerModal" class="meta-modal-bg" style="display: flex;">
-    <div class="meta-modal-content" style="text-align: center; border-top: 5px solid #2563eb;">
-        <i class="fas fa-exclamation-triangle" style="font-size: 2rem; color: #2563eb; margin-bottom: 15px;"></i>
-        <h2>Welcome to Map App</h2>
-        <div style="text-align: left; margin: 15px 0; line-height: 1.5; color: #444;">
-            <p><strong>Please Read Carefully:</strong></p>
-            <ul>
-                <li>This tool is for <strong>educational purposes</strong> only.</li>
-                <li>Do <strong>NOT</strong> use this tool during competitive GeoGuessr games or tournaments.</li>
-                <li>Respect the fair play rules of the GeoGuessr community.</li>
-            </ul>
+<div class="top-bar">
+    <div class="search-box">
+        <div class="search-input-container">
+            <i class="fas fa-search" style="color: #94a3b8; margin-left: 10px;"></i>
+            <input type="text" id="search-input" placeholder="Search places...">
+            <button id="clear-search" class="icon-button"><i class="fas fa-times"></i></button>
         </div>
-        <button id="acceptTerms" onclick="window.acceptDisclaimer()" style="width: 100%; background: #2563eb; color: white; border: none; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: bold; font-size: 1rem;">
-            I UNDERSTAND & ACCEPT
-        </button>
+        <div class="search-results"></div>
     </div>
 </div>
 
-<div class="app-container">
-    <div class="top-bar">
-        <div class="search-box">
-            <div class="search-input-container">
-                <input type="text" id="search-input" placeholder="Search places...">
-                <button id="clear-search" class="icon-button"><i class="fas fa-times"></i></button>
+<div class="custom-controls">
+    <button id="theme-toggle" class="control-btn" title="Toggle Dark Mode">
+        <i class="fas fa-moon"></i>
+    </button>
+    <button id="open-login" class="control-btn" title="Login">
+        <i class="fas fa-user-lock"></i>
+    </button>
+    <button id="doLogout" class="control-btn" title="Logout" style="display: none;">
+        <i class="fas fa-sign-out-alt"></i>
+    </button>
+</div>
+
+<div class="layer-controls-container">
+    <div class="layer-controls">
+        <button class="layer-btn active" data-layer="street">Map</button>
+        <button class="layer-btn" data-layer="satellite">Satellite</button>
+        <button class="layer-btn" data-layer="topo">Terrain</button>
+    </div>
+</div>
+
+<div class="locate-me-container">
+    <button id="current-location" class="control-btn" title="My Location">
+        <i class="fas fa-location-crosshairs"></i>
+    </button>
+</div>
+
+<div id="map"></div>
+
+<div id="loginModal" class="meta-modal-bg" style="display: none;">
+    <div class="auth-container">
+        <span class="close-x" onclick="document.getElementById('loginModal').style.display='none'">&times;</span>
+
+        <div id="auth-content" class="auth-content-wrapper">
+            <div class="auth-icon-top">
+                <i class="fas fa-shield-alt"></i>
             </div>
-            <div class="search-results"></div>
-        </div>
 
-        <div class="controls">
-            <button id="current-location" class="control-btn" title="My Location">
-                <i class="fas fa-location-arrow"></i>
-            </button>
-            <button id="bookmark-location" class="control-btn" title="Save Location">
-                <i class="fas fa-bookmark"></i>
-            </button>
-        </div>
+            <h2 id="auth-title">Sign in with email</h2>
+            <p id="auth-subtitle">Manage your GeoGuessr metas in one place.</p>
 
-        <div class="layer-controls">
-            <button class="layer-btn active" data-layer="street">Map</button>
-            <button class="layer-btn" data-layer="satellite">Satellite</button>
-            <button class="layer-btn" data-layer="topo">Terrain</button>
+            <div class="auth-input-group">
+                <i class="fas fa-envelope"></i>
+                <input type="email" id="login-email" class="auth-field" placeholder="Email">
+            </div>
+
+            <div class="auth-input-group">
+                <i class="fas fa-lock"></i>
+                <input type="password" id="login-password" class="auth-field" placeholder="Password">
+            </div>
+
+            <div id="forgot-password-link" style="text-align: right; margin-top: -5px; margin-bottom: 20px;">
+                <a href="#" style="font-size: 0.8rem; color: #64748b; text-decoration: none;">Forgot password?</a>
+            </div>
+
+            <button id="auth-action-btn" class="btn-primary-auth">Get Started</button>
+
+            <div style="text-align: center; margin-top: 25px;">
+                <a href="#" id="toggle-auth" style="color: #2563eb; font-size: 0.85rem; font-weight: 600; text-decoration: none;">Don't have an account? Create one</a>
+            </div>
         </div>
     </div>
+</div>
 
-    <div id="map"></div>
-    <div id="zoom-level" class="zoom-indicator">Zoom: 13</div>
-
-    <div id="loading-indicator" class="loading-hidden">
-        <div class="spinner"></div>
-    </div>
-
-    <div id="bookmarks-panel" class="bookmarks-panel hidden">
-        <h3>Saved Locations</h3>
-        <div id="bookmarks-list"></div>
+<div id="disclaimerModal" class="meta-modal-bg" style="display: flex;">
+    <div class="meta-modal-content">
+        <div class="auth-icon-top" style="background: rgba(37, 99, 235, 0.1); color: #2563eb;">
+            <i class="fas fa-exclamation-triangle"></i>
+        </div>
+        <h2 style="margin-bottom: 10px;">Welcome to Map App</h2>
+        <div style="text-align: left; margin: 20px 0; line-height: 1.6; color: #475569; font-size: 0.95rem;">
+            <p style="margin-bottom: 10px;"><strong>Please Read Carefully:</strong></p>
+            <ul style="padding-left: 20px;">
+                <li>Educational purposes only.</li>
+                <li>Do <strong>NOT</strong> use during competitive games.</li>
+                <li>Respect the GeoGuessr community rules.</li>
+            </ul>
+        </div>
+        <button id="acceptTerms" onclick="window.acceptDisclaimer()" class="btn-primary-auth">
+            I UNDERSTAND & ACCEPT
+        </button>
     </div>
 </div>
 
@@ -75,24 +112,16 @@
     <div class="meta-modal-content">
         <span class="close-x" onclick="window.closeMetaForm()">&times;</span>
 
-        <h3>Report Location</h3>
-        <p style="font-size: 0.9em; color: #555;">
-            Pinning: <strong id="display-coords">0.00, 0.00</strong>
+        <h3 style="font-weight: 700; margin-bottom: 5px;">Report Location</h3>
+        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 20px;">
+            Pinning: <strong id="display-coords" style="color: #1e293b;">0.00, 0.00</strong>
         </p>
-
-        <div style="margin: 15px 0; text-align: center;">
-            <img id="image-preview" src=""
-                 style="display: none; width: 100%; max-height: 200px; border-radius: 8px; object-fit: cover; border: 2px solid #2563eb;">
-        </div>
 
         <input type="hidden" id="modal-lat">
         <input type="hidden" id="modal-lng">
 
-        <div style="text-align: left; margin-top: 15px;">
-            <label style="display: block; font-weight: bold; margin-bottom: 5px;">Upload Image:</label>
-            <input type="file" id="metaImage" accept="image/*" style="width: 100%; margin-bottom: 15px;">
-
-            <label style="display: block; font-weight: bold; margin-bottom: 10px;">Tags:</label>
+        <div style="text-align: left;">
+            <label style="display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 8px; color: #1e293b;">TAGS</label>
             <div class="tag-grid">
                 <label>
                     <input type="checkbox" class="meta-tag" value="ghana">
@@ -109,9 +138,9 @@
             </div>
         </div>
 
-        <div style="margin-top: 20px; display: flex; gap: 10px;">
-            <button onclick="window.closeMetaForm()" style="flex: 1; padding: 10px; cursor: pointer; border: 1px solid #ccc; border-radius: 4px;">Cancel</button>
-            <button id="finalSubmit" style="flex: 1; padding: 10px; cursor: pointer; background: #2563eb; color: white; border: none; border-radius: 4px; font-weight: bold;">Submit Pin</button>
+        <div style="margin-top: 30px; display: flex; gap: 12px;">
+            <button onclick="window.closeMetaForm()" style="flex: 1; padding: 14px; cursor: pointer; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 12px; font-weight: 600; color: #64748b;">Cancel</button>
+            <button id="finalSubmit" class="btn-primary-auth" style="flex: 2; margin-top: 0;">Submit Pin</button>
         </div>
     </div>
 </div>

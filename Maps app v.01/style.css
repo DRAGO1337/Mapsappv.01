@@ -1,270 +1,306 @@
-/* --- BASE STYLES --- */
-* {
-    margin: 0;
-    padding: 0;
-    box-sizing: border-box;
-    font-family: 'Roboto', sans-serif;
+/* --- 1. CORE VARIABLES & DARK MODE LOGIC --- */
+:root {
+    --primary: #2563eb;
+    --primary-hover: #1d4ed8;
+    --bg-glass: rgba(255, 255, 255, 0.75);
+    --bg-glass-dark: rgba(15, 23, 42, 0.85);
+    --border-light: rgba(255, 255, 255, 0.4);
+    --border-dark: rgba(255, 255, 255, 0.1);
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --text-dark: #f8fafc;
+    --shadow-premium: 0 12px 40px rgba(0, 0, 0, 0.12);
+    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --radius-squircle: 16px;
 }
 
-.app-container {
-    position: relative;
-    height: 100vh;
-    width: 100vw;
+/* Hide Leaflet Branding */
+.leaflet-control-attribution {
+    display: none !important;
+}
+
+/* --- 2. BASE STYLES --- */
+html, body {
+    height: 100%;
+    width: 100%;
+    margin: 0;
+    padding: 0;
     overflow: hidden;
+    background: #f1f5f9;
+}
+
+* {
+    box-sizing: border-box;
+    font-family: 'Inter', 'SF Pro Display', -apple-system, sans-serif;
 }
 
 #map {
-    height: 100%;
-    width: 100%;
+    position: absolute;
+    top: 0; bottom: 0; left: 0; right: 0;
+    width: 100%; height: 100%;
     z-index: 1;
+    background: #0f172a; /* Prevents white flash */
 }
 
-/* --- TOP BAR & SEARCH --- */
+/* --- THE BROKEN LAYER FIX --- */
+/* Only applies the inversion filter when the "map-dark-active" class is present */
+/* This prevents Satellite and Terrain from looking like a mess */
+body.dark-theme.map-dark-active #map .leaflet-tile-pane {
+    filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
+}
+
+/* --- 3. TOP CENTER SEARCH --- */
 .top-bar {
-    position: absolute;
-    top: 1rem;
-    left: 1rem;
-    z-index: 10000;
-    display: flex;
-    gap: 0.5rem;
-    align-items: flex-start;
+    position: fixed;
+    top: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1000;
+    width: 90%;
+    max-width: 500px;
+    pointer-events: none;
 }
 
 .search-box {
-    position: relative;
-    min-width: 300px;
+    width: 100%;
+    background: var(--bg-glass);
+    backdrop-filter: blur(16px);
+    -webkit-backdrop-filter: blur(16px);
+    border: 1px solid var(--border-light);
+    border-radius: 20px;
+    padding: 4px 12px;
+    box-shadow: var(--shadow-premium);
+    transition: var(--transition);
+    pointer-events: auto;
 }
 
 .search-input-container {
-    position: relative;
     display: flex;
     align-items: center;
 }
 
 #search-input {
     width: 100%;
-    padding: 0.75rem 2.5rem 0.75rem 1rem;
+    padding: 10px;
     border: none;
-    border-radius: 8px;
-    background: white;
-    font-size: 14px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    transition: all 0.3s ease;
-}
-
-#search-input:focus {
+    background: transparent;
+    font-size: 15px;
+    color: var(--text-main);
     outline: none;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
-    transform: scale(1.02);
 }
 
-.icon-button {
-    position: absolute;
-    right: 8px;
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: #666;
-    padding: 5px;
+/* --- 4. POSITIONED CONTROLS --- */
+.custom-controls {
+    position: fixed;
+    top: 1.5rem;
+    right: 1.5rem;
     display: flex;
-    align-items: center;
-    justify-content: center;
+    flex-direction: column;
+    gap: 12px;
+    z-index: 1001;
 }
 
-/* --- SEARCH RESULTS DROPDOWN (FIXED) --- */
-.search-results {
-    position: absolute;
-    top: calc(100% + 5px);
-    left: 0;
-    right: 0;
-    background: white !important;
-    border-radius: 8px;
-    box-shadow: 0 10px 25px rgba(0,0,0,0.2);
-    display: none;
-    max-height: 300px;
-    overflow-y: auto;
-    /* Increased z-index to stay above Leaflet markers and controls */
-    z-index: 10001 !important;
+.layer-controls-container {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 1.5rem;
+    z-index: 1001;
 }
 
-.search-result-item {
-    padding: 10px 15px;
-    cursor: pointer;
-    font-size: 13px;
-    border-bottom: 1px solid #eee;
-    color: #333;
-    transition: background 0.2s;
-    text-align: left;
-    white-space: nowrap;
-    overflow: hidden;
-    text-overflow: ellipsis;
-}
-
-.search-result-item:hover {
-    background: #f0f7ff;
-    color: #2563eb;
-}
-
-.search-result-item:last-child {
-    border-bottom: none;
-}
-
-/* --- CONTROLS --- */
-.control-btn, .layer-controls {
-    background: white;
-    border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
-    border: none;
+.locate-me-container {
+    position: fixed;
+    bottom: 1.5rem;
+    right: 1.5rem;
+    z-index: 1001;
 }
 
 .control-btn {
-    padding: 0.75rem;
+    width: 48px; height: 48px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    border: 1px solid var(--border-light);
+    border-radius: 14px;
+    display: flex; align-items: center; justify-content: center;
     cursor: pointer;
-    transition: all 0.3s ease;
+    box-shadow: var(--shadow-premium);
+    transition: var(--transition);
+    color: var(--text-main);
 }
 
 .control-btn:hover {
-    transform: scale(1.05);
+    transform: translateY(-2px);
+    background: white;
 }
 
 .layer-controls {
     display: flex;
-    padding: 0.25rem;
+    background: var(--bg-glass);
+    backdrop-filter: blur(12px);
+    padding: 4px;
+    border-radius: 14px;
+    box-shadow: var(--shadow-premium);
+    border: 1px solid var(--border-light);
 }
 
 .layer-btn {
-    padding: 0.5rem 1rem;
+    padding: 8px 16px;
     border: none;
     background: transparent;
     font-size: 13px;
+    font-weight: 600;
     cursor: pointer;
-    border-radius: 4px;
+    border-radius: 10px;
+    color: var(--text-muted);
+    transition: var(--transition);
 }
 
 .layer-btn.active {
-    background: #e8f0fe;
-    color: #1a73e8;
+    background: white;
+    color: var(--primary);
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
 }
 
-/* --- MODAL SYSTEM --- */
+/* --- 5. PREMIUM AUTH FORM RESTORATION --- */
 .meta-modal-bg {
     display: none;
-    position: fixed !important;
-    top: 0; left: 0;
-    width: 100vw; height: 100vh;
-    background: rgba(0, 0, 0, 0.7) !important;
-    z-index: 1000000 !important;
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.4);
+    backdrop-filter: blur(12px);
+    z-index: 99999;
     justify-content: center;
     align-items: center;
 }
 
-.meta-modal-content {
+.auth-container {
     background: white;
-    padding: 30px;
-    border-radius: 15px;
-    width: 400px;
+    padding: 40px;
+    border-radius: 32px;
+    width: 420px;
     max-width: 90%;
     position: relative;
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
-    animation: modalPop 0.3s ease-out;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    overflow: hidden;
+    text-align: center;
 }
 
-@keyframes modalPop {
-    from { opacity: 0; transform: scale(0.9); }
-    to { opacity: 1; transform: scale(1); }
-}
-
-.close-x {
-    position: absolute;
-    right: 15px; top: 10px;
-    font-size: 28px;
-    cursor: pointer;
-    color: #aaa;
-}
-
-/* --- PILL TAGS --- */
-.tag-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 8px;
-    margin-top: 10px;
-}
-
-.meta-tag {
-    display: none;
-}
-
-.tag-label {
-    display: inline-block;
-    padding: 6px 14px;
-    border: 2px solid #2563eb;
+.auth-icon-top {
+    width: 60px; height: 60px;
+    background: #eff6ff;
+    color: var(--primary);
     border-radius: 20px;
-    cursor: pointer;
-    font-size: 12px;
-    font-weight: 500;
-    color: #2563eb;
-    background: white;
-    transition: all 0.2s ease;
+    display: flex; align-items: center; justify-content: center;
+    margin: 0 auto 20px;
+    font-size: 24px;
 }
 
-.meta-tag:checked + .tag-label {
-    background: #2563eb;
+/* Input Group Logic (Restoring the Icons/Padding) */
+.auth-input-group {
+    position: relative;
+    margin-bottom: 16px;
+    text-align: left;
+}
+
+.auth-input-group i {
+    position: absolute;
+    left: 16px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: var(--text-muted);
+    pointer-events: none;
+}
+
+.auth-field {
+    width: 100%;
+    padding: 14px 16px 14px 45px; /* Added left padding for icons */
+    border-radius: 14px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    font-size: 15px;
+    outline: none;
+    transition: all 0.2s ease;
+    color: var(--text-main);
+}
+
+.auth-field:focus {
+    border-color: var(--primary);
+    background: white;
+    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
+}
+
+/* Animation wrapper */
+.auth-content-wrapper {
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.auth-slide-out { opacity: 0; transform: translateX(-20px); }
+.auth-slide-in { opacity: 0; transform: translateX(20px); }
+
+.btn-primary-auth {
+    width: 100%;
+    padding: 16px;
+    background: #1e293b;
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: var(--transition);
+}
+
+.btn-primary-auth:hover {
+    background: #000;
+    transform: translateY(-1px);
+}
+
+/* --- 6. DARK THEME OVERRIDES --- */
+body.dark-theme .search-box,
+body.dark-theme .control-btn,
+body.dark-theme .layer-controls,
+body.dark-theme .meta-modal-content,
+body.dark-theme .auth-container,
+body.dark-theme .search-results {
+    background: var(--bg-glass-dark) !important;
+    border-color: var(--border-dark);
+    color: var(--text-dark);
+}
+
+body.dark-theme .auth-field {
+    background: rgba(255, 255, 255, 0.05);
+    border-color: rgba(255, 255, 255, 0.1);
     color: white;
 }
 
-/* --- PULSE & PINS --- */
-
-/* Leaflet's outer marker wrapper — must stay transform-free so zoom doesn't desync */
-.location-marker-wrapper {
-    background: transparent !important;
-    border: none !important;
+body.dark-theme .auth-field:focus {
+    border-color: #60a5fa;
+    background: rgba(255, 255, 255, 0.1);
 }
 
-/* Inner div handles the visual pulse; isolated from Leaflet's zoom transforms */
-.location-pulse {
-    width: 16px;
-    height: 16px;
-    background: #1a73e8;
-    border: 3px solid white;
-    border-radius: 50%;
-    box-shadow: 0 0 8px rgba(0,0,0,0.4);
-    animation: pulse 2s infinite;
-    transform-origin: center center;
-    position: relative;
-    top: 2px;
-    left: 2px;
+body.dark-theme .layer-btn.active {
+    background: var(--primary);
+    color: white;
 }
 
-@keyframes pulse {
-    0%   { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(26, 115, 232, 0.7); }
-    70%  { transform: scale(1.1); box-shadow: 0 0 0 14px rgba(26, 115, 232, 0); }
-    100% { transform: scale(0.9); box-shadow: 0 0 0 0 rgba(26, 115, 232, 0); }
+body.dark-theme #search-input,
+body.dark-theme .search-result-item {
+    color: white;
 }
 
-.custom-pin {
-    filter: drop-shadow(0 2px 2px rgba(0,0,0,0.5));
+/* --- 7. MISC --- */
+.close-x {
+    position: absolute; right: 20px; top: 20px;
+    font-size: 24px; cursor: pointer; color: var(--text-muted);
 }
 
-/* --- MISC --- */
-.zoom-indicator {
-    position: absolute;
-    bottom: 1rem;
-    left: 1rem;
-    background: white;
-    padding: 0.5rem;
-    border-radius: 4px;
-    font-size: 12px;
-    z-index: 1000;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+.tag-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; }
+.meta-tag { display: none; }
+.tag-label {
+    padding: 8px 16px; border: 2px solid #e2e8f0; border-radius: 20px;
+    cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-muted);
 }
 
-.spinner {
-    width: 30px;
-    height: 30px;
-    border: 3px solid #f3f3f3;
-    border-top: 3px solid #3498db;
-    border-radius: 50%;
-    animation: spin 1s linear infinite;
+.meta-tag:checked + .tag-label {
+    background: var(--primary); border-color: var(--primary); color: white;
 }
-
-@keyframes spin { 100% { transform: rotate(360deg); } }
