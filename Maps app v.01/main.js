@@ -103,83 +103,108 @@ map.on('contextmenu', function(e) {
 });
 
 // --- SEARCH & GEOLOCATION ---
-const geocoder = new L.Control.Geocoder.Nominatim();
 const searchInput = document.getElementById('search-input');
 const searchResultsContainer = document.querySelector('.search-results');
 const clearSearchBtn = document.getElementById('clear-search');
 
-// FIXED: Clear Search Button Logic
 if (clearSearchBtn) {
     clearSearchBtn.onclick = (e) => {
         e.preventDefault();
         searchInput.value = '';
         searchResultsContainer.style.setProperty('display', 'none', 'important');
-        console.log("Search cleared and hidden");
     };
 }
 
 if (searchInput) {
+    searchInput.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter') {
+            const query = searchInput.value.trim();
+            if (query.length >= 2) performSearch(query);
+        }
+    });
+
     searchInput.addEventListener('input', debounce((e) => {
-        const query = e.target.value;
-        if (query.length < 3) {
+        const query = e.target.value.trim();
+        if (query.length < 2) {
             searchResultsContainer.style.setProperty('display', 'none', 'important');
             return;
         }
-        geocoder.geocode(query, (results) => {
-            if (results && results.length > 0) {
-                displaySearchResults(results);
-            } else {
-                searchResultsContainer.style.setProperty('display', 'none', 'important');
-            }
-        });
-    }, 300));
+        performSearch(query);
+    }, 400));
 }
 
-function displaySearchResults(results) {
+function performSearch(query) {
+    const url = `https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=6&addressdetails=1`;
+    fetch(url, {
+        headers: { 'Accept-Language': 'en', 'Accept': 'application/json' }
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data && data.length > 0) {
+            displaySearchResults(data);
+        } else {
+            searchResultsContainer.innerHTML = '<div class="search-result-item" style="color:#888;">No results found.</div>';
+            searchResultsContainer.style.setProperty('display', 'block', 'important');
+        }
+    })
+    .catch(() => {
+        searchResultsContainer.innerHTML = '<div class="search-result-item" style="color:#c00;">Search unavailable.</div>';
+        searchResultsContainer.style.setProperty('display', 'block', 'important');
+    });
+}
+
+function displaySearchResults(data) {
     searchResultsContainer.innerHTML = '';
-    // Use setProperty to override any conflicting CSS
     searchResultsContainer.style.setProperty('display', 'block', 'important');
 
-    results.forEach((result) => {
+    data.forEach((item) => {
         const div = document.createElement('div');
         div.className = 'search-result-item';
-        div.textContent = result.name;
+
+        const name = item.display_name;
+        div.textContent = name;
+        div.title = name;
+
         div.onclick = () => {
-            map.setView(result.center, 16);
-            L.marker(result.center).addTo(map).bindPopup(`<b>${result.name}</b>`).openPopup();
+            const lat = parseFloat(item.lat);
+            const lon = parseFloat(item.lon);
+            const latlng = [lat, lon];
+            map.setView(latlng, 14);
+            L.marker(latlng).addTo(map).bindPopup(`<b>${item.display_name}</b>`).openPopup();
             searchResultsContainer.style.setProperty('display', 'none', 'important');
-            searchInput.value = result.name;
+            searchInput.value = item.display_name;
         };
         searchResultsContainer.appendChild(div);
     });
 }
 
-// FIXED LOCATE ME: Linked Marker and Popup + Cleanup
+// LOCATE ME
 document.getElementById('current-location').onclick = function() {
     navigator.geolocation.getCurrentPosition((pos) => {
         const latlng = [pos.coords.latitude, pos.coords.longitude];
 
-        // 1. Remove old version of you before adding new one
         if (currentUserMarker) {
             map.removeLayer(currentUserMarker);
         }
 
+        // Use an inner div for the pulse animation so Leaflet's zoom transforms
+        // on the outer wrapper don't conflict with the animation's own transform.
         const pulseIcon = L.divIcon({
-            className: 'location-pulse',
-            iconSize: [16, 16],
-            iconAnchor: [8, 8] // CRITICAL: This keeps the dot on the coordinate during zoom
+            className: 'location-marker-wrapper',
+            html: '<div class="location-pulse"></div>',
+            iconSize: [20, 20],
+            iconAnchor: [10, 10]
         });
 
         map.setView(latlng, 17);
 
-        // 2. Assign to variable and tether popup directly to marker
-        currentUserMarker = L.marker(latlng, {icon: pulseIcon}).addTo(map);
-        currentUserMarker.bindPopup("<b>You are here</b>", {
-            offset: L.point(0, -10),
+        currentUserMarker = L.marker(latlng, { icon: pulseIcon }).addTo(map);
+        currentUserMarker.bindPopup('<b>You are here</b>', {
+            offset: L.point(0, -12),
             closeButton: false
         }).openPopup();
 
-    }, (err) => {
+    }, () => {
         alert("Location denied or unavailable.");
     }, { enableHighAccuracy: true });
 };
