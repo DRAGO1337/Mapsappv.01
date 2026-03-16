@@ -29,23 +29,23 @@ html, body {
     position: absolute;
     inset: 0;
     z-index: 1;
-    background: #0f172a; /* Match background to prevent white flash */
+    background: #0f172a;
 }
 
-/* --- THE SMART FILTER --- */
+/* --- 3. THE SMART FILTER (DARK MODE LOGIC) --- */
 /* Default: Apply dark mode filter to map tiles when dark-theme is active */
 body.dark-theme #map .leaflet-tile-pane {
     filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
     transition: filter 0.3s ease;
 }
 
-/* FERRARI FIX: If satellite or topo are active, remove the filter from map tiles ONLY */
+/* FERRARI FIX: If satellite or topo are active, remove the filter entirely */
 body.dark-theme.satellite-active #map .leaflet-tile-pane,
 body.dark-theme.topo-active #map .leaflet-tile-pane {
     filter: none !important;
 }
 
-/* --- 3. TOP NAVIGATION --- */
+/* --- 4. TOP NAVIGATION (LEFT SIDE) --- */
 .navigation-bar {
     position: fixed;
     top: 1.5rem;
@@ -78,7 +78,7 @@ body.dark-theme.topo-active #map .leaflet-tile-pane {
     box-shadow: 0 4px 10px rgba(0,0,0,0.05);
 }
 
-/* --- 4. SEARCH BAR & "X" BUTTON --- */
+/* --- 5. SEARCH BAR & RESULTS --- */
 .top-bar {
     position: fixed; top: 1.5rem; left: 50%;
     transform: translateX(-50%); z-index: 1000;
@@ -107,12 +107,6 @@ body.dark-theme.topo-active #map .leaflet-tile-pane {
     border-radius: 50%;
 }
 
-#clear-search:hover {
-    background: rgba(0, 0, 0, 0.05);
-    color: #ef4444;
-    transform: scale(1.1);
-}
-
 .search-results {
     position: absolute; top: calc(100% + 10px); left: 0; right: 0;
     background: var(--bg-glass); backdrop-filter: blur(25px);
@@ -126,7 +120,7 @@ body.dark-theme.topo-active #map .leaflet-tile-pane {
     color: var(--text-main); border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-/* --- 5. GENERATION PILLS --- */
+/* --- 6. GENERATION PILLS (TOP CENTER-LEFT) --- */
 .gen-pill-container {
     position: fixed;
     top: 1.5rem;
@@ -146,7 +140,7 @@ body.dark-theme.topo-active #map .leaflet-tile-pane {
 
 .gen-pill.active { background: var(--primary); color: white; border-color: var(--primary); }
 
-/* --- 6. FLOATING CONTROLS --- */
+/* --- 7. FLOATING CONTROLS & LAYER SWITCHER --- */
 .custom-controls {
     position: fixed; top: 1.5rem; right: 1.5rem;
     display: flex; flex-direction: column; gap: 10px; z-index: 1001;
@@ -159,8 +153,6 @@ body.dark-theme.topo-active #map .leaflet-tile-pane {
     display: flex; align-items: center; justify-content: center;
     transition: var(--transition); box-shadow: var(--shadow-premium);
 }
-
-.control-btn:hover { background: white; transform: scale(1.05); }
 
 .layer-controls-container { position: fixed; bottom: 1.5rem; left: 1.5rem; z-index: 1001; }
 .layer-controls {
@@ -175,44 +167,76 @@ body.dark-theme.topo-active #map .leaflet-tile-pane {
 }
 .layer-btn.active { background: white; color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
 
-/* --- 7. PREMIUM BUTTONS --- */
-.btn-primary-auth, .btn-agree {
-    width: 100%;
-    padding: 14px;
-    background: var(--primary);
-    color: white;
-    border: none;
-    border-radius: 14px;
-    font-weight: 700;
-    font-size: 14px;
-    letter-spacing: 0.3px;
-    cursor: pointer;
-    transition: var(--transition);
-    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.25);
-    display: flex;
-    align-items: center;
-    justify-content: center;
+/* --- 8. META CARD (THE IMAGE & POPUP FIX) --- */
+.leaflet-popup-content-wrapper {
+    padding: 0 !important;
+    overflow: hidden;
+    border-radius: 16px !important;
+}
+.leaflet-popup-content {
+    margin: 0 !important;
+    width: 280px !important;
 }
 
-.btn-primary-auth:hover, .btn-agree:hover {
+.meta-card {
+    width: 280px;
+    background: white;
+    overflow: hidden;
+}
+
+.meta-card-img {
+    width: 100%;
+    height: 160px; /* Fixed height stops "Huge Image" bug */
+    object-fit: cover; /* Crops image to fit the box perfectly */
+    display: block;
+    background: #f1f5f9;
+}
+
+.meta-card-body { padding: 15px; }
+
+.meta-card-tag {
+    font-size: 10px; font-weight: 800; color: var(--primary);
+    text-transform: uppercase; letter-spacing: 0.5px;
+    display: block; margin-bottom: 6px;
+}
+
+.meta-card-desc {
+    font-size: 14px; font-weight: 600; color: #1e293b;
+    margin: 0 0 8px 0; line-height: 1.4;
+}
+
+.meta-card-user {
+    font-size: 11px; color: #94a3b8;
+    display: flex; align-items: center; gap: 5px;
+}
+
+/* --- 9. BUTTONS & ACTIONS --- */
+.btn-primary-auth, .btn-agree {
+    width: 100%; padding: 14px; background: var(--primary);
+    color: white; border: none; border-radius: 14px;
+    font-weight: 700; font-size: 14px; cursor: pointer;
+    transition: var(--transition); box-shadow: 0 4px 15px rgba(37, 99, 235, 0.25);
+    display: flex; align-items: center; justify-content: center;
+}
+
+.btn-primary-auth:hover {
     background: var(--primary-hover);
     transform: translateY(-2px);
-    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
 }
 
-/* --- 8. AUTH & MODALS --- */
+/* --- 10. MODALS & FORMS --- */
 .meta-modal-bg {
     display: none; position: fixed; inset: 0;
     background: rgba(15, 23, 42, 0.6);
     backdrop-filter: blur(12px); z-index: 10000;
     justify-content: center; align-items: center;
-    transition: opacity 0.3s ease;
 }
 
 .meta-modal-content {
     background: white; padding: 32px; border-radius: 30px;
     width: 420px; max-width: 90%; position: relative;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+    animation: slideUp 0.3s ease-out;
 }
 
 .auth-field {
@@ -221,7 +245,11 @@ body.dark-theme.topo-active #map .leaflet-tile-pane {
     background: #f8fafc; font-size: 14px; outline: none; transition: 0.2s;
 }
 
-/* --- 9. DARK THEME UI OVERRIDES --- */
+/* --- 11. DARK THEME UI OVERRIDES --- */
+body.dark-theme .meta-card { background: #1e293b; }
+body.dark-theme .meta-card-desc { color: white; }
+body.dark-theme .meta-card-user { color: #cbd5e1; } /* Anonymous fix: light text on dark bg */
+
 body.dark-theme .search-box,
 body.dark-theme .navigation-bar,
 body.dark-theme .gen-pill,
@@ -240,19 +268,16 @@ body.dark-theme .auth-field {
 }
 
 body.dark-theme #search-input { color: white; }
-body.dark-theme #clear-search:hover { background: rgba(255, 255, 255, 0.1); }
 body.dark-theme .shortcut-btn.active { background: rgba(255,255,255,0.1); color: var(--primary); }
 
-/* ANIMATIONS */
+/* --- 12. ANIMATIONS & RESPONSIVE --- */
 @keyframes slideUp {
     from { opacity: 0; transform: translateY(20px); }
     to { opacity: 1; transform: translateY(0); }
 }
-.meta-modal-content { animation: slideUp 0.3s ease-out; }
 
-/* Mobile Responsive */
 @media (max-width: 850px) {
-    .navigation-bar { top: auto; bottom: 20px; left: 50%; transform: translateX(-50%); flex-direction: row; width: 90%; }
-    .gen-pill-container { top: auto; bottom: 85px; left: 50%; transform: translateX(-50%); }
+    .navigation-bar { top: auto; bottom: 20px; left: 50%; transform: translateX(-50%); flex-direction: row; width: 95%; padding: 6px; }
+    .gen-pill-container { top: auto; bottom: 85px; left: 50%; transform: translateX(-50%); overflow-x: auto; max-width: 90%; }
     .top-bar { top: 1rem; width: 95%; }
 }

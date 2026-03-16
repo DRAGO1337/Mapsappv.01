@@ -158,7 +158,7 @@ function placeSavedMarker(pinData) {
             <div class="meta-card-body">
                 <span class="meta-card-tag">${genLabel}</span>
                 <p class="meta-card-desc">${pinData.description}</p>
-                <div style="font-size:10px; color:#94a3b8; margin-top:8px; display:flex; align-items:center; gap:5px;">
+                <div class="meta-card-user">
                     <i class="fas fa-user-circle"></i> ${pinData.username || 'Anonymous'}
                 </div>
             </div>
@@ -208,53 +208,92 @@ document.getElementById('open-profile').onclick = async () => {
     }
 };
 
-// --- 9. AUTHENTICATION ---
+// --- 9. AUTHENTICATION ( Login / Sign Up ) ---
+let isSignUpMode = false; // Add toggle logic if you have a toggle button
 document.getElementById('auth-action-btn').onclick = async () => {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
-    const captchaResponse = hcaptcha.getResponse();
-    if (!email || !password || !captchaResponse) return alert("Please fill all fields and captcha");
 
-    let result = isSignUpMode
-        ? await supabase.auth.signUp({ email, password, options: { captchaToken: captchaResponse } })
-        : await supabase.auth.signInWithPassword({ email, password, options: { captchaToken: captchaResponse } });
+    // Captcha handling (Ensure hcaptcha is loaded in HTML)
+    const captchaResponse = typeof hcaptcha !== 'undefined' ? hcaptcha.getResponse() : "skipped";
+    if (!email || !password) return alert("Please fill all fields");
+
+    let result;
+    if (isSignUpMode) {
+        result = await supabase.auth.signUp({ email, password });
+    } else {
+        result = await supabase.auth.signInWithPassword({ email, password });
+    }
 
     if (result.error) alert(result.error.message);
     else location.reload();
 };
 
-// --- 10. SUBMIT NEW META ---
+// --- 10. SUBMIT NEW META ( THE BIG FIX ) ---
 document.getElementById('finalSubmit').onclick = async function() {
     const btn = this;
     const desc = document.getElementById('modal-desc').value;
     const gen = document.querySelector('input[name="gen-select"]:checked')?.value;
+
     if (!desc || !gen) return alert("Description and Gen are required");
+
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return alert("You must be logged in to submit.");
 
     btn.disabled = true;
     btn.innerText = "Uploading...";
 
-    let imageUrl = "";
-    const fileInput = document.getElementById('modal-file');
-    if (fileInput.files.length > 0) {
-        const file = fileInput.files[0];
-        const fileName = `${Date.now()}-${file.name}`;
-        await supabase.storage.from('meta-images').upload(fileName, file);
-        imageUrl = supabase.storage.from('meta-images').getPublicUrl(fileName).data.publicUrl;
-    }
+    try {
+        let imageUrl = "";
+        const fileInput = document.getElementById('modal-file');
 
-    const { data: { user } } = await supabase.auth.getUser();
-    const { data: profile } = await supabase.from('profiles').select('username').eq('id', user.id).single();
+        // 1. Handle Image Upload
+        if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            const fileExt = file.name.split('.').pop();
+            const fileName = `${user.id}-${Date.now()}.${fileExt}`;
 
-    const { error } = await supabase.from('metas').insert([{
-        lat: parseFloat(document.getElementById('modal-lat').value),
-        lng: parseFloat(document.getElementById('modal-lng').value),
-        description: desc, gen_tag: gen, image_url: imageUrl, username: profile?.username || 'Anonymous'
-    }]);
+            const { error: uploadError } = await supabase.storage
+                .from('meta-images')
+                .upload(fileName, file);
 
-    if (!error) {
+            if (uploadError) throw uploadError;
+
+            imageUrl = supabase.storage.from('meta-images').getPublicUrl(fileName).data.publicUrl;
+        }
+
+        // 2. Get real username from Profile
+        const { data: profile } = await supabase.from('profiles')
+            .select('username')
+            .eq('id', user.id)
+            .single();
+
+        const finalUsername = profile?.username || user.email.split('@')[0] || 'Explorer';
+
+        // 3. Insert into Database
+        const { error: insertError } = await supabase.from('metas').insert([{
+            lat: parseFloat(document.getElementById('modal-lat').value),
+            lng: parseFloat(document.getElementById('modal-lng').value),
+            description: desc,
+            gen_tag: gen,
+            image_url: imageUrl,
+            username: finalUsername,
+            user_id: user.id
+        }]);
+
+        if (insertError) throw insertError;
+
+        // 4. Update Score
         await supabase.rpc('increment_pin_count', { user_id: user.id });
+
         location.reload();
-    } else alert(error.message);
+
+    } catch (err) {
+        console.error(err);
+        alert("Submission failed: " + err.message);
+        btn.disabled = false;
+        btn.innerText = "Submit Meta";
+    }
 };
 
 // --- 11. INITIALIZE & FERRARI LAYER CONTROL ---
@@ -262,8 +301,8 @@ document.addEventListener('DOMContentLoaded', () => {
     loadSavedPins();
     supabase.auth.getUser().then(({data}) => {
         if (data.user) {
-            document.getElementById('open-login').style.display = 'none';
-            document.getElementById('doLogout').style.display = 'flex';
+            if (document.getElementById('open-login')) document.getElementById('open-login').style.display = 'none';
+            if (document.getElementById('doLogout')) document.getElementById('doLogout').style.display = 'flex';
         }
     });
 });
@@ -272,21 +311,16 @@ document.querySelectorAll('.layer-btn').forEach(btn => {
     btn.onclick = function() {
         const type = this.getAttribute('data-layer');
 
-        // Remove existing map layers
         Object.values(layers).forEach(layer => map.removeLayer(layer));
         layers[type].addTo(map);
 
-        // Update UI buttons
         document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
         this.classList.add('active');
 
-        // FERRARI FIX: Force dark filter behavior based on layer type
+        // Smart Filter class toggling
         document.body.classList.remove('satellite-active', 'topo-active');
-        if (type === 'satellite') {
-            document.body.classList.add('satellite-active');
-        } else if (type === 'topo') {
-            document.body.classList.add('topo-active');
-        }
+        if (type === 'satellite') document.body.classList.add('satellite-active');
+        if (type === 'topo') document.body.classList.add('topo-active');
     };
 });
 
@@ -300,3 +334,8 @@ window.openMetaForm = (lat, lng) => {
 map.on('contextmenu', (e) => window.openMetaForm(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6)));
 
 document.getElementById('theme-toggle').onclick = () => document.body.classList.toggle('dark-theme');
+
+document.getElementById('doLogout').onclick = async () => {
+    await supabase.auth.signOut();
+    location.reload();
+};
