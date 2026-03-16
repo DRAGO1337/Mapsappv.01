@@ -1,4 +1,22 @@
-// --- 1. CONFIGURATION ---
+// --- 1. GLOBAL UI FUNCTIONS ( Ferrari-spec Fixes ) ---
+
+// Smoothly dismiss the disclaimer
+window.acceptDisclaimer = () => {
+    const modal = document.getElementById('disclaimerModal');
+    if (modal) {
+        modal.style.opacity = '0';
+        modal.style.transition = 'opacity 0.3s ease';
+        setTimeout(() => {
+            modal.style.display = 'none';
+        }, 300);
+    }
+};
+
+window.closeMetaForm = () => {
+    document.getElementById('metaModal').style.display = 'none';
+};
+
+// --- 2. CONFIGURATION ---
 const SUPABASE_URL = 'https://zevrtruxhekpzhrsefsp.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpldnJ0cnV4aGVrcHpocnNlZnNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzM1ODE4NDcsImV4cCI6MjA4OTE1Nzg0N30.OvqDoPIwAtw9ZJcVtlAAI4Yvc-UtYJxcuCmULLdAB74';
 
@@ -7,11 +25,14 @@ if (!window.supabaseClient) {
 }
 var supabase = window.supabaseClient;
 
-// --- 2. MAP INITIALIZATION & LAYERS ---
+// --- 3. MAP INITIALIZATION & LAYERS ---
 const map = L.map('map', {
     zoomControl: false,
     attributionControl: false
-}).setView([43.2102, 23.5529], 13);
+}).setView([15, 0], 3);
+
+const mainMarkers = L.layerGroup().addTo(map);
+const highlightLayer = L.layerGroup().addTo(map);
 
 const layers = {
     street: L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'),
@@ -19,74 +40,93 @@ const layers = {
     topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png')
 };
 
+// Start with Road layer
 layers.street.addTo(map);
 
-/* --- NEW: SHORTCUT TAB LOGIC --- */
-window.goToRegion = (lat, lng, zoom) => {
-    map.flyTo([lat, lng], zoom, {
-        animate: true,
-        duration: 2
-    });
-};
-
-function handleLayerFilter(layerType) {
-    if (layerType === 'street') {
-        document.body.classList.add('map-dark-active');
-    } else {
-        document.body.classList.remove('map-dark-active');
-    }
-}
-
-handleLayerFilter('street');
-
-document.querySelectorAll('.layer-btn').forEach(btn => {
+// --- 4. NAVIGATION & EXPLORER CONTROL ---
+const navButtons = document.querySelectorAll('.shortcut-btn');
+navButtons.forEach(btn => {
     btn.onclick = function() {
-        const type = this.getAttribute('data-layer');
-        Object.values(layers).forEach(layer => map.removeLayer(layer));
-        layers[type].addTo(map);
-        handleLayerFilter(type);
-        document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
+        navButtons.forEach(b => b.classList.remove('active'));
         this.classList.add('active');
+
+        const page = this.id;
+        highlightLayer.clearLayers();
+        document.getElementById('gen-filter').style.display = (page === 'nav-gens') ? 'flex' : 'none';
+
+        if (page === 'nav-leaderboard') loadLeaderboard();
+        if (page === 'nav-map') {
+            document.querySelectorAll('.gen-pill').forEach(p => p.classList.remove('active'));
+            loadSavedPins();
+        }
     };
 });
 
-// --- 3. SEARCH LOGIC ---
+// --- 5. HIGHLIGHT SYSTEM (Generation Filtering) ---
+async function updateMapHighlights(genNum) {
+    highlightLayer.clearLayers();
+    if (genNum === 'all') {
+        loadSavedPins();
+        return;
+    }
+
+    loadSavedPins('gen' + genNum);
+
+    const { data, error } = await supabase
+        .from('coverage_areas')
+        .select('geojson_data, color_code')
+        .eq('gen_tag', 'gen' + genNum);
+
+    if (error) return console.error("Highlight Error:", error);
+
+    if (data) {
+        data.forEach(area => {
+            L.geoJSON(area.geojson_data, {
+                style: {
+                    fillColor: area.color_code,
+                    fillOpacity: 0.3,
+                    color: area.color_code,
+                    weight: 1,
+                    opacity: 0.8
+                }
+            }).addTo(highlightLayer);
+        });
+    }
+}
+
+document.querySelectorAll('.gen-pill').forEach(pill => {
+    pill.onclick = function() {
+        document.querySelectorAll('.gen-pill').forEach(p => p.classList.remove('active'));
+        this.classList.add('active');
+        updateMapHighlights(this.getAttribute('data-gen'));
+    };
+});
+
+// --- 6. SEARCH LOGIC ---
 const searchInput = document.getElementById('search-input');
 const searchResults = document.getElementById('search-results');
 const clearSearchBtn = document.getElementById('clear-search');
 
+searchInput.addEventListener('input', (e) => {
+    clearSearchBtn.style.display = e.target.value.length > 0 ? 'flex' : 'none';
+});
+
 function performSearch(query) {
-    if (query.length < 3) {
-        searchResults.style.display = 'none';
-        return;
-    }
-    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=10&addressdetails=1`)
+    if (query.length < 3) { searchResults.style.display = 'none'; return; }
+    fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=5`)
         .then(res => res.json())
         .then(data => {
             searchResults.innerHTML = '';
-            if (!data || data.length === 0) {
-                searchResults.style.display = 'none';
-                return;
-            }
+            if (!data.length) { searchResults.style.display = 'none'; return; }
             searchResults.style.display = 'block';
             data.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'search-result-item';
-                const addr = item.address;
-                const mainName = addr.city || addr.town || addr.village || addr.hamlet || item.display_name.split(',')[0];
-                const subName = [addr.state, addr.country].filter(Boolean).join(', ');
-
-                div.innerHTML = `
-                    <i class="fas fa-map-marker-alt" style="margin-right: 12px; color: #94a3b8;"></i>
-                    <div style="display: flex; flex-direction: column; overflow: hidden;">
-                        <span style="font-weight: 600; color: inherit;">${mainName}</span>
-                        <span style="font-size: 11px; opacity: 0.6; color: inherit;">${subName}</span>
-                    </div>
-                `;
+                div.innerHTML = `<i class="fas fa-map-marker-alt" style="margin-right:10px;"></i> <span>${item.display_name.split(',')[0]}</span>`;
                 div.onclick = () => {
-                    map.flyTo([parseFloat(item.lat), parseFloat(item.lon)], 12, { animate: true, duration: 1.8 });
+                    map.flyTo([item.lat, item.lon], 12, { animate: true });
                     searchResults.style.display = 'none';
-                    searchInput.value = mainName;
+                    searchInput.value = item.display_name.split(',')[0];
                 };
                 searchResults.appendChild(div);
             });
@@ -95,114 +135,129 @@ function performSearch(query) {
 
 function debounce(func, wait) {
     let timeout;
-    return (...args) => {
-        clearTimeout(timeout);
-        timeout = setTimeout(() => func(...args), wait);
-    };
+    return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => func(...args), wait); };
 }
-
 searchInput.addEventListener('input', debounce((e) => performSearch(e.target.value), 400));
-clearSearchBtn.onclick = () => { searchInput.value = ''; searchResults.style.display = 'none'; searchInput.focus(); };
 
-// --- 4. THEME & UI ---
-const themeToggle = document.getElementById('theme-toggle');
-function applyTheme(theme) {
-    const icon = themeToggle.querySelector('i');
-    if (theme === 'dark') {
-        document.body.classList.add('dark-theme');
-        icon.classList.replace('fa-moon', 'fa-sun');
-    } else {
-        document.body.classList.remove('dark-theme');
-        icon.classList.replace('fa-sun', 'fa-moon');
-    }
-}
-themeToggle.onclick = () => {
-    const newTheme = document.body.classList.contains('dark-theme') ? 'light' : 'dark';
-    localStorage.setItem('map-app-theme', newTheme);
-    applyTheme(newTheme);
+clearSearchBtn.onclick = () => {
+    searchInput.value = '';
+    searchResults.innerHTML = '';
+    searchResults.style.display = 'none';
+    clearSearchBtn.style.display = 'none';
+    searchInput.focus();
 };
-applyTheme(localStorage.getItem('map-app-theme') || 'light');
 
-// --- 5. MARKER & SUPABASE ---
+// --- 7. MARKER SYSTEM ---
 function placeSavedMarker(pinData) {
-    if (!pinData.lat || !pinData.lng) return;
-    const marker = L.marker([pinData.lat, pinData.lng]).addTo(map);
-    const tags = Array.isArray(pinData.tags) ? pinData.tags.join(', ') : (pinData.tags || 'None');
-    marker.bindPopup(`<b>Meta Pin</b><br>Tags: ${tags}`);
+    const img = pinData.image_url || 'https://via.placeholder.com/300x150';
+    const genLabel = pinData.gen_tag ? pinData.gen_tag.toUpperCase() : 'META';
+    const marker = L.marker([pinData.lat, pinData.lng]);
+    const cardHtml = `
+        <div class="meta-card">
+            <img src="${img}" class="meta-card-img">
+            <div class="meta-card-body">
+                <span class="meta-card-tag">${genLabel}</span>
+                <p class="meta-card-desc">${pinData.description}</p>
+                <div style="font-size:10px; color:#94a3b8; margin-top:8px; display:flex; align-items:center; gap:5px;">
+                    <i class="fas fa-user-circle"></i> ${pinData.username || 'Anonymous'}
+                </div>
+            </div>
+        </div>
+    `;
+    marker.bindPopup(cardHtml).addTo(mainMarkers);
 }
 
-async function loadSavedPins() {
-    const { data } = await supabase.from('metas').select('*');
+async function loadSavedPins(filterGen = null) {
+    mainMarkers.clearLayers();
+    let query = supabase.from('metas').select('*');
+    if (filterGen) query = query.eq('gen_tag', filterGen);
+    const { data } = await query;
     if (data) data.forEach(pin => placeSavedMarker(pin));
 }
 
-async function savePinToCloud(lat, lng, tags) {
+// --- 8. SCOREBOARD & PROFILE ---
+async function loadLeaderboard() {
+    document.getElementById('leaderboardModal').style.display = 'flex';
+    const { data } = await supabase.from('profiles').select('*').order('pins_count', { ascending: false }).limit(10);
+    const container = document.getElementById('leaderboard-list');
+    if (!data || data.length === 0) {
+        container.innerHTML = `<p style="text-align:center; color:#64748b;">No contributors yet.</p>`;
+        return;
+    }
+    container.innerHTML = data.map((u, i) => `
+        <div class="leaderboard-row">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span style="font-weight:800; color:var(--primary);">#${i+1}</span>
+                <img src="${u.pfp_url || 'https://via.placeholder.com/30'}" style="width:30px; height:30px; border-radius:50%; object-fit:cover;">
+                <span style="font-weight:600;">${u.username || 'Anonymous'}</span>
+            </div>
+            <span style="font-size:12px; font-weight:700; background:#f1f5f9; padding:4px 8px; border-radius:8px; color:#1e293b;">${u.pins_count || 0} PINS</span>
+        </div>
+    `).join('');
+}
+
+document.getElementById('open-profile').onclick = async () => {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { document.getElementById('loginModal').style.display = 'flex'; return; }
-    await supabase.from('metas').insert([{ lat, lng, tags, image_url: "" }]);
-}
+    document.getElementById('profileModal').style.display = 'flex';
+    const { data: profile } = await supabase.from('profiles').select('*').eq('id', user.id).single();
+    if (profile) {
+        document.getElementById('display-username').innerText = profile.username || "Explorer";
+        document.getElementById('update-username').value = profile.username || "";
+        document.getElementById('update-pfp').value = profile.pfp_url || "";
+    }
+};
 
-// --- 6. AUTHENTICATION (UPDATED WITH HCAPTCHA) ---
-let isSignUpMode = false;
-const toggleAuthBtn = document.getElementById('toggle-auth');
-
-if (toggleAuthBtn) {
-    toggleAuthBtn.onclick = (e) => {
-        e.preventDefault();
-        const wrapper = document.querySelector('.auth-content-wrapper');
-        wrapper.classList.add('auth-slide-out');
-        setTimeout(() => {
-            isSignUpMode = !isSignUpMode;
-            document.getElementById('auth-title').innerText = isSignUpMode ? "Join us" : "Sign in";
-            document.getElementById('auth-action-btn').innerText = isSignUpMode ? "Create Account" : "Get Started";
-            toggleAuthBtn.innerText = isSignUpMode ? "Already have an account? Sign In" : "Don't have an account? Create one";
-            wrapper.classList.remove('auth-slide-out');
-            wrapper.classList.add('auth-slide-in');
-            setTimeout(() => wrapper.classList.remove('auth-slide-in'), 50);
-            hcaptcha.reset(); // Reset captcha on toggle
-        }, 300);
-    };
-}
-
+// --- 9. AUTHENTICATION ---
 document.getElementById('auth-action-btn').onclick = async () => {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
-
-    // Check hCaptcha token
     const captchaResponse = hcaptcha.getResponse();
+    if (!email || !password || !captchaResponse) return alert("Please fill all fields and captcha");
 
-    if (!email || !password) return alert("Fields cannot be empty");
-    if (!captchaResponse) return alert("Please complete the captcha!");
+    let result = isSignUpMode
+        ? await supabase.auth.signUp({ email, password, options: { captchaToken: captchaResponse } })
+        : await supabase.auth.signInWithPassword({ email, password, options: { captchaToken: captchaResponse } });
 
-    let result;
-    if (isSignUpMode) {
-        result = await supabase.auth.signUp({
-            email,
-            password,
-            options: { captchaToken: captchaResponse }
-        });
-    } else {
-        result = await supabase.auth.signInWithPassword({
-            email,
-            password,
-            options: { captchaToken: captchaResponse }
-        });
+    if (result.error) alert(result.error.message);
+    else location.reload();
+};
+
+// --- 10. SUBMIT NEW META ---
+document.getElementById('finalSubmit').onclick = async function() {
+    const btn = this;
+    const desc = document.getElementById('modal-desc').value;
+    const gen = document.querySelector('input[name="gen-select"]:checked')?.value;
+    if (!desc || !gen) return alert("Description and Gen are required");
+
+    btn.disabled = true;
+    btn.innerText = "Uploading...";
+
+    let imageUrl = "";
+    const fileInput = document.getElementById('modal-file');
+    if (fileInput.files.length > 0) {
+        const file = fileInput.files[0];
+        const fileName = `${Date.now()}-${file.name}`;
+        await supabase.storage.from('meta-images').upload(fileName, file);
+        imageUrl = supabase.storage.from('meta-images').getPublicUrl(fileName).data.publicUrl;
     }
 
-    if (result.error) {
-        alert(result.error.message);
-        hcaptcha.reset();
-    } else {
+    const { data: { user } } = await supabase.auth.getUser();
+    const { data: profile } = await supabase.from('profiles').select('username').eq('id', user.id).single();
+
+    const { error } = await supabase.from('metas').insert([{
+        lat: parseFloat(document.getElementById('modal-lat').value),
+        lng: parseFloat(document.getElementById('modal-lng').value),
+        description: desc, gen_tag: gen, image_url: imageUrl, username: profile?.username || 'Anonymous'
+    }]);
+
+    if (!error) {
+        await supabase.rpc('increment_pin_count', { user_id: user.id });
         location.reload();
-    }
+    } else alert(error.message);
 };
 
-document.getElementById('doLogout').onclick = async () => {
-    await supabase.auth.signOut();
-    location.reload();
-};
-
-// --- 7. INITIALIZATION & EVENTS ---
+// --- 11. INITIALIZE & FERRARI LAYER CONTROL ---
 document.addEventListener('DOMContentLoaded', () => {
     loadSavedPins();
     supabase.auth.getUser().then(({data}) => {
@@ -211,26 +266,29 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('doLogout').style.display = 'flex';
         }
     });
-
-    if (sessionStorage.getItem('termsAccepted') === 'true') {
-        document.getElementById('disclaimerModal').style.display = 'none';
-    }
-
-    document.getElementById('open-login').onclick = () => document.getElementById('loginModal').style.display = 'flex';
-
-    document.getElementById('finalSubmit').onclick = async function() {
-        const lat = parseFloat(document.getElementById('modal-lat').value);
-        const lng = parseFloat(document.getElementById('modal-lng').value);
-        const tags = Array.from(document.querySelectorAll('.meta-tag:checked')).map(t => t.value);
-        await savePinToCloud(lat, lng, tags);
-        window.closeMetaForm();
-    };
 });
 
-window.acceptDisclaimer = () => {
-    document.getElementById('disclaimerModal').style.display = 'none';
-    sessionStorage.setItem('termsAccepted', 'true');
-};
+document.querySelectorAll('.layer-btn').forEach(btn => {
+    btn.onclick = function() {
+        const type = this.getAttribute('data-layer');
+
+        // Remove existing map layers
+        Object.values(layers).forEach(layer => map.removeLayer(layer));
+        layers[type].addTo(map);
+
+        // Update UI buttons
+        document.querySelectorAll('.layer-btn').forEach(b => b.classList.remove('active'));
+        this.classList.add('active');
+
+        // FERRARI FIX: Force dark filter behavior based on layer type
+        document.body.classList.remove('satellite-active', 'topo-active');
+        if (type === 'satellite') {
+            document.body.classList.add('satellite-active');
+        } else if (type === 'topo') {
+            document.body.classList.add('topo-active');
+        }
+    };
+});
 
 window.openMetaForm = (lat, lng) => {
     document.getElementById('display-coords').innerText = `${lat}, ${lng}`;
@@ -239,19 +297,6 @@ window.openMetaForm = (lat, lng) => {
     document.getElementById('metaModal').style.display = 'flex';
 };
 
-window.closeMetaForm = () => {
-    document.getElementById('metaModal').style.display = 'none';
-    document.querySelectorAll('.meta-tag').forEach(t => t.checked = false);
-};
+map.on('contextmenu', (e) => window.openMetaForm(e.latlng.lat.toFixed(6), e.latlng.lng.toFixed(6)));
 
-map.on('contextmenu', (e) => {
-    const lat = e.latlng.lat.toFixed(6);
-    const lng = e.latlng.lng.toFixed(6);
-    L.popup().setLatLng(e.latlng).setContent(`
-        <button onclick="window.openMetaForm(${lat}, ${lng})" class="btn-primary-auth" style="padding: 8px 16px; font-size: 12px;">ADD PIN</button>
-    `).openOn(map);
-});
-
-supabase.channel('public:metas').on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'metas' }, p => {
-    placeSavedMarker(p.new);
-}).subscribe();
+document.getElementById('theme-toggle').onclick = () => document.body.classList.toggle('dark-theme');

@@ -2,55 +2,68 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Spotmeta | GeoGuessr Meta Map</title>
+    <title>Spotmeta | Professional GeoGuessr Meta Map</title>
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
 
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="style.css">
 
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="https://js.hcaptcha.com/1/api.js" async defer></script>
 </head>
-<body>
+<body class="map-dark-active">
 
 <div class="top-bar">
     <div class="search-box">
-        <div class="search-input-container">
-            <i class="fas fa-search" style="color: #94a3b8; margin-left: 10px;"></i>
-            <input type="text" id="search-input" placeholder="Search meta places..." autocomplete="off">
-            <button id="clear-search" class="icon-button" title="Clear search">
-                <i class="fas fa-times-circle"></i>
-            </button>
-        </div>
+        <i class="fas fa-search" style="color: #94a3b8; margin-right: 10px; font-size: 14px;"></i>
+        <input type="text" id="search-input" placeholder="Search locations..." autocomplete="off">
+        <button id="clear-search" class="icon-button" title="Clear Search">
+            <i class="fas fa-times-circle"></i>
+        </button>
         <div class="search-results" id="search-results"></div>
     </div>
 </div>
 
-<div class="shortcut-container">
-    <button class="shortcut-btn" onclick="goToRegion(1.3733, 32.2903, 7)">🇺🇬 Uganda</button>
-    <button class="shortcut-btn" onclick="goToRegion(-1.2863, 36.8219, 7)">🇰🇪 Kenya</button>
-    <button class="shortcut-btn" onclick="goToRegion(5.6037, -0.1870, 7)">🇬🇭 Ghana</button>
-    <button class="shortcut-btn" onclick="goToRegion(14.6349, -90.5069, 8)">🇬🇹 Guatemala</button>
+<div class="navigation-bar">
+    <button class="shortcut-btn active" id="nav-map">
+        <i class="fas fa-globe-americas"></i> Explorer
+    </button>
+    <button class="shortcut-btn" id="nav-gens">
+        <i class="fas fa-layer-group"></i> Generations
+    </button>
+    <button class="shortcut-btn" id="nav-leaderboard">
+        <i class="fas fa-trophy"></i> Scoreboard
+    </button>
+</div>
+
+<div class="gen-pill-container" id="gen-filter" style="display: none;">
+    <div class="gen-pill active" data-gen="all">ALL</div>
+    <div class="gen-pill" data-gen="1">GEN 1</div>
+    <div class="gen-pill" data-gen="2">GEN 2</div>
+    <div class="gen-pill" data-gen="3">GEN 3</div>
+    <div class="gen-pill" data-gen="4">GEN 4</div>
 </div>
 
 <div class="custom-controls">
-    <button id="theme-toggle" class="control-btn" title="Toggle Dark Mode">
+    <button id="theme-toggle" class="control-btn" title="Toggle Mode">
         <i class="fas fa-moon"></i>
     </button>
-    <button id="open-login" class="control-btn" title="Login">
-        <i class="fas fa-user-lock"></i>
+    <button id="open-profile" class="control-btn" title="Account Settings">
+        <i class="fas fa-user-circle"></i>
     </button>
-    <button id="doLogout" class="control-btn" title="Logout" style="display: none;">
-        <i class="fas fa-sign-out-alt"></i>
+    <button id="open-login" class="control-btn" title="Login/Sign Up">
+        <i class="fas fa-key"></i>
+    </button>
+    <button id="doLogout" class="control-btn" style="display: none; color: #ef4444;" title="Logout">
+        <i class="fas fa-power-off"></i>
     </button>
 </div>
 
 <div class="layer-controls-container">
     <div class="layer-controls">
-        <button class="layer-btn active" data-layer="street">Map</button>
+        <button class="layer-btn active" data-layer="street">Road</button>
         <button class="layer-btn" data-layer="satellite">Satellite</button>
         <button class="layer-btn" data-layer="topo">Terrain</button>
     </div>
@@ -59,93 +72,99 @@
 <div id="map"></div>
 
 <div id="loginModal" class="meta-modal-bg" style="display: none;">
-    <div class="auth-container">
+    <div class="meta-modal-content" style="max-width: 380px;">
         <span class="close-x" onclick="document.getElementById('loginModal').style.display='none'">&times;</span>
+        <h2 id="auth-title" style="text-align: center;">Sign in</h2>
+        <p style="color: #64748b; font-size: 13px; margin-bottom: 20px; text-align: center;">Join the meta-mapping community.</p>
 
-        <div id="auth-content" class="auth-content-wrapper">
-            <div class="auth-icon-top">
-                <i class="fas fa-shield-alt"></i>
-            </div>
-
-            <h2 id="auth-title">Sign in</h2>
-            <p id="auth-subtitle">Manage your GeoGuessr metas.</p>
-
-            <div class="auth-input-group">
-                <i class="fas fa-envelope"></i>
-                <input type="email" id="login-email" class="auth-field" placeholder="Email">
-            </div>
-
-            <div class="auth-input-group">
-                <i class="fas fa-lock"></i>
-                <input type="password" id="login-password" class="auth-field" placeholder="Password">
-            </div>
-
-            <div id="h-captcha-box" class="h-captcha" data-sitekey="fb0eac34-6dfe-4d42-ae52-a7ecfb144f50" data-theme="dark" style="margin-bottom: 15px;"></div>
-
-            <button id="auth-action-btn" class="btn-primary-auth">Get Started</button>
-
-            <div style="text-align: center; margin-top: 25px;">
-                <a href="#" id="toggle-auth" style="color: #2563eb; font-size: 0.85rem; font-weight: 600; text-decoration: none;">Create an account</a>
-            </div>
+        <div style="position: relative; margin-bottom: 12px;">
+            <i class="fas fa-envelope" style="position: absolute; left: 16px; top: 16px; color: #94a3b8;"></i>
+            <input type="email" id="login-email" class="auth-field" placeholder="Email Address">
         </div>
+        <div style="position: relative; margin-bottom: 20px;">
+            <i class="fas fa-lock" style="position: absolute; left: 16px; top: 16px; color: #94a3b8;"></i>
+            <input type="password" id="login-password" class="auth-field" placeholder="Password">
+        </div>
+
+        <div id="h-captcha-box" class="h-captcha" data-sitekey="fb0eac34-6dfe-4d42-ae52-a7ecfb144f50" data-theme="dark"></div>
+
+        <button id="auth-action-btn" class="btn-primary-auth" style="margin-top: 15px;">Continue</button>
+
+        <p style="margin-top: 20px; font-size: 13px; color: #64748b; text-align: center;">
+            <a href="#" id="toggle-auth" style="color: var(--primary); font-weight: 700; text-decoration: none;">Create an account</a>
+        </p>
     </div>
 </div>
 
-<div id="disclaimerModal" class="meta-modal-bg" style="display: flex;">
+<div id="profileModal" class="meta-modal-bg" style="display: none;">
     <div class="meta-modal-content">
-        <div class="auth-icon-top" style="background: rgba(37, 99, 235, 0.1); color: #2563eb;">
-            <i class="fas fa-exclamation-triangle"></i>
+        <span class="close-x" onclick="document.getElementById('profileModal').style.display='none'">&times;</span>
+        <div class="profile-header" style="text-align: center; margin-bottom: 20px;">
+            <div class="pfp-large" id="user-pfp-display">
+                <i class="fas fa-user"></i>
+            </div>
+            <h2 id="display-username" style="margin-top: 10px;">Explorer</h2>
         </div>
-        <h2 style="margin-bottom: 10px;">Welcome to Spotmeta</h2>
-        <div style="text-align: left; margin: 20px 0; line-height: 1.6; color: #475569; font-size: 0.95rem;">
-            <ul style="padding-left: 20px;">
-                <li>Educational purposes only.</li>
-                <li>Respect GeoGuessr community rules.</li>
-            </ul>
+
+        <label style="font-size: 12px; font-weight: 700; color: #94a3b8; margin-bottom: 8px; display: block;">USERNAME</label>
+        <input type="text" id="update-username" class="auth-field" placeholder="New Username" style="margin-bottom: 15px; padding-left: 15px;">
+
+        <label style="font-size: 12px; font-weight: 700; color: #94a3b8; margin-bottom: 8px; display: block;">PFP IMAGE URL</label>
+        <input type="text" id="update-pfp" class="auth-field" placeholder="https://image-link.com/photo.jpg" style="margin-bottom: 25px; padding-left: 15px;">
+
+        <button id="save-profile" class="btn-primary-auth">Save Settings</button>
+    </div>
+</div>
+
+<div id="leaderboardModal" class="meta-modal-bg" style="display: none;">
+    <div class="meta-modal-content">
+        <span class="close-x" onclick="document.getElementById('leaderboardModal').style.display='none'">&times;</span>
+        <h2 style="text-align: center; margin-bottom: 20px;"><i class="fas fa-medal" style="color: #fbbf24;"></i> Scoreboard</h2>
+        <div class="leaderboard-container" id="leaderboard-list">
         </div>
-        <button id="acceptTerms" onclick="window.acceptDisclaimer()" class="btn-primary-auth">
-            I UNDERSTAND & ACCEPT
-        </button>
     </div>
 </div>
 
 <div id="metaModal" class="meta-modal-bg" style="display: none;">
     <div class="meta-modal-content">
         <span class="close-x" onclick="window.closeMetaForm()">&times;</span>
-        <h3 style="font-weight: 700; margin-bottom: 5px;">Report Location</h3>
-        <p style="font-size: 0.85rem; color: #64748b; margin-bottom: 20px;">
-            Pinning: <strong id="display-coords" style="color: #1e293b;">0.00, 0.00</strong>
-        </p>
+        <h3>Add Meta Spot</h3>
+        <p style="font-size: 11px; color: #94a3b8; margin-bottom: 20px;">Loc: <span id="display-coords">0, 0</span></p>
 
         <input type="hidden" id="modal-lat">
         <input type="hidden" id="modal-lng">
 
-        <div style="text-align: left;">
-            <label style="display: block; font-weight: 700; font-size: 0.85rem; margin-bottom: 8px; color: #1e293b;">TAGS</label>
-            <div class="tag-grid">
-                <label><input type="checkbox" class="meta-tag" value="ghana"><span class="tag-label">🇬🇭 Ghana Tape</span></label>
-                <label><input type="checkbox" class="meta-tag" value="car"><span class="tag-label">🚗 Car Meta</span></label>
-                <label><input type="checkbox" class="meta-tag" value="snorkel"><span class="tag-label">🤿 Snorkel</span></label>
-            </div>
+        <label style="font-size: 12px; font-weight: 700; color: #94a3b8; margin-bottom: 8px; display: block;">DESCRIPTION</label>
+        <input type="text" id="modal-desc" class="auth-field" placeholder="e.g. 'Kenya Snorkel with Black Tape'" style="padding-left: 15px; margin-bottom: 15px;">
+
+        <label style="font-size: 12px; font-weight: 700; color: #94a3b8; margin-bottom: 8px; display: block;">SELECT GENERATION</label>
+        <div class="tag-grid">
+            <label><input type="radio" name="gen-select" value="gen1" class="meta-tag"><span class="tag-label">Gen 1</span></label>
+            <label><input type="radio" name="gen-select" value="gen2" class="meta-tag"><span class="tag-label">Gen 2</span></label>
+            <label><input type="radio" name="gen-select" value="gen3" class="meta-tag"><span class="tag-label">Gen 3</span></label>
+            <label><input type="radio" name="gen-select" value="gen4" class="meta-tag"><span class="tag-label">Gen 4</span></label>
         </div>
 
-        <div style="margin-top: 30px; display: flex; gap: 12px;">
-            <button onclick="window.closeMetaForm()" style="flex: 1; padding: 14px; border: 1px solid #e2e8f0; background: #f8fafc; border-radius: 12px; font-weight: 600; color: #64748b;">Cancel</button>
-            <button id="finalSubmit" class="btn-primary-auth" style="flex: 2; margin-top: 0;">Submit Pin</button>
-        </div>
+        <label style="font-size: 12px; font-weight: 700; color: #94a3b8; margin-top: 15px; margin-bottom: 8px; display: block;">IMAGE UPLOAD</label>
+        <input type="file" id="modal-file" style="margin-bottom: 20px; font-size: 12px; color: #64748b;">
+
+        <button id="finalSubmit" class="btn-primary-auth">Submit to Database</button>
+    </div>
+</div>
+
+<div id="disclaimerModal" class="meta-modal-bg" style="display: flex;">
+    <div class="meta-modal-content" style="text-align: center; max-width: 350px;">
+        <i class="fas fa-shield-alt" style="font-size: 40px; color: var(--primary); margin-bottom: 15px;"></i>
+        <h2>Welcome to Spotmeta</h2>
+        <p style="font-size: 13px; color: #64748b; line-height: 1.6; margin-bottom: 20px;">
+            By entering, you agree to contribute accurate data and respect the community database.
+        </p>
+        <button onclick="window.acceptDisclaimer()" class="btn-agree">I AGREE</button>
     </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
 <script src="main.js"></script>
-
-<script>
-    window.si = window.si || function () { (window.siq = window.siq || []).push(arguments); };
-    window.va = window.va || function () { (window.vaq = window.vaq || []).push(arguments); };
-</script>
-<script defer src="/_vercel/speed-insights/script.js"></script>
-<script defer src="/_vercel/insights/script.js"></script>
 
 </body>
 </html>

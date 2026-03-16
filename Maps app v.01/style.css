@@ -1,328 +1,258 @@
-/* --- 1. CORE VARIABLES & DARK MODE LOGIC --- */
+/* --- 1. CORE VARIABLES & THEME --- */
 :root {
     --primary: #2563eb;
     --primary-hover: #1d4ed8;
-    --bg-glass: rgba(255, 255, 255, 0.75);
-    --bg-glass-dark: rgba(15, 23, 42, 0.85);
+    --bg-glass: rgba(255, 255, 255, 0.8);
+    --bg-glass-dark: rgba(15, 23, 42, 0.9);
     --border-light: rgba(255, 255, 255, 0.4);
     --border-dark: rgba(255, 255, 255, 0.1);
     --text-main: #1e293b;
     --text-muted: #64748b;
     --text-dark: #f8fafc;
-    --shadow-premium: 0 12px 40px rgba(0, 0, 0, 0.12);
-    --transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --radius-ios: 18px;
+    --shadow-premium: 0 12px 40px rgba(0, 0, 0, 0.15);
+    --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 /* Hide Leaflet Branding */
-.leaflet-control-attribution {
-    display: none !important;
-}
+.leaflet-control-attribution { display: none !important; }
 
 /* --- 2. BASE STYLES --- */
 html, body {
     height: 100%; width: 100%;
     margin: 0; padding: 0;
-    overflow: hidden;
-    background: #f1f5f9;
+    overflow: hidden; background: #0f172a;
 }
 
-* {
-    box-sizing: border-box;
-    font-family: 'Inter', sans-serif;
-}
+* { box-sizing: border-box; font-family: 'Inter', sans-serif; }
 
 #map {
     position: absolute;
     inset: 0;
     z-index: 1;
-    background: #0f172a;
+    background: #0f172a; /* Match background to prevent white flash */
 }
 
-/* --- BROKEN LAYER FIX --- */
-/* Only inverts when map-dark-active class is present (toggled via JS) */
-body.dark-theme.map-dark-active #map .leaflet-tile-pane {
+/* --- THE SMART FILTER --- */
+/* Default: Apply dark mode filter to map tiles when dark-theme is active */
+body.dark-theme #map .leaflet-tile-pane {
     filter: brightness(0.6) invert(1) contrast(3) hue-rotate(200deg) saturate(0.3);
+    transition: filter 0.3s ease;
 }
 
-/* --- 3. TOP CENTER SEARCH (FIXED & BEAUTIFIED) --- */
-.top-bar {
+/* FERRARI FIX: If satellite or topo are active, remove the filter from map tiles ONLY */
+body.dark-theme.satellite-active #map .leaflet-tile-pane,
+body.dark-theme.topo-active #map .leaflet-tile-pane {
+    filter: none !important;
+}
+
+/* --- 3. TOP NAVIGATION --- */
+.navigation-bar {
     position: fixed;
     top: 1.5rem;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 1000;
-    width: 90%;
-    max-width: 500px;
-    pointer-events: none;
+    left: 1.5rem;
+    z-index: 1001;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    background: var(--bg-glass);
+    backdrop-filter: blur(15px);
+    padding: 8px;
+    border-radius: 18px;
+    border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-premium);
+    width: 160px;
+}
+
+.shortcut-btn {
+    background: transparent; border: none; color: var(--text-muted);
+    font-size: 13px; font-weight: 700; padding: 10px 14px;
+    border-radius: 12px; cursor: pointer; transition: var(--transition);
+    display: flex; align-items: center; gap: 10px;
+    width: 100%;
+    white-space: nowrap;
+}
+
+.shortcut-btn.active {
+    background: white;
+    color: var(--primary);
+    box-shadow: 0 4px 10px rgba(0,0,0,0.05);
+}
+
+/* --- 4. SEARCH BAR & "X" BUTTON --- */
+.top-bar {
+    position: fixed; top: 1.5rem; left: 50%;
+    transform: translateX(-50%); z-index: 1000;
+    width: 90%; max-width: 450px; pointer-events: none;
 }
 
 .search-box {
-    width: 100%;
-    background: var(--bg-glass);
-    backdrop-filter: blur(20px);
-    -webkit-backdrop-filter: blur(20px);
-    border: 1px solid var(--border-light);
-    border-radius: 24px;
-    padding: 6px 14px;
-    box-shadow: 0 10px 30px -5px rgba(0, 0, 0, 0.15);
-    transition: var(--transition);
-    pointer-events: auto;
-    position: relative;
-}
-
-.search-box:focus-within {
-    background: white;
-    border-color: var(--primary);
-    box-shadow: 0 15px 40px -10px rgba(37, 99, 235, 0.25);
-}
-
-.search-input-container {
-    display: flex;
-    align-items: center;
-    gap: 8px;
+    width: 100%; background: var(--bg-glass); backdrop-filter: blur(20px);
+    border: 1px solid var(--border-light); border-radius: 50px;
+    padding: 6px 14px 6px 18px; box-shadow: var(--shadow-premium);
+    pointer-events: auto; display: flex; align-items: center; position: relative;
 }
 
 #search-input {
-    width: 100%;
-    padding: 10px 0;
-    border: none;
-    background: transparent;
-    font-size: 16px;
-    font-weight: 500;
-    color: var(--text-main);
-    outline: none;
+    flex: 1; border: none; background: transparent;
+    font-size: 14px; font-weight: 500; color: var(--text-main); outline: none;
+    padding: 8px 0;
 }
 
-/* The "X" Button Styling */
-.icon-button {
-    background: none;
-    border: none;
-    cursor: pointer;
-    color: var(--text-muted);
-    padding: 8px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: 0.2s;
-    font-size: 18px;
+#clear-search {
+    background: none; border: none; padding: 8px;
+    cursor: pointer; color: var(--text-muted); font-size: 16px;
+    display: none;
+    align-items: center; justify-content: center;
+    transition: var(--transition);
+    border-radius: 50%;
 }
 
-.icon-button:hover {
+#clear-search:hover {
+    background: rgba(0, 0, 0, 0.05);
     color: #ef4444;
     transform: scale(1.1);
 }
 
-/* Search Results Dropdown */
 .search-results {
-    position: absolute;
-    top: calc(100% + 12px);
-    left: 0; right: 0;
-    background: var(--bg-glass);
-    backdrop-filter: blur(25px);
-    -webkit-backdrop-filter: blur(25px);
-    border-radius: 20px;
-    border: 1px solid var(--border-light);
-    box-shadow: var(--shadow-premium);
-    max-height: 300px;
-    overflow-y: auto;
-    display: none;
-    z-index: 2000;
+    position: absolute; top: calc(100% + 10px); left: 0; right: 0;
+    background: var(--bg-glass); backdrop-filter: blur(25px);
+    border-radius: 20px; border: 1px solid var(--border-light);
+    box-shadow: var(--shadow-premium); max-height: 280px;
+    overflow-y: auto; display: none; z-index: 2000;
 }
 
 .search-result-item {
-    padding: 14px 20px;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    color: var(--text-main); /* Default dark text for light mode */
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
-    transition: 0.2s;
-    display: flex;
-    align-items: center;
+    padding: 12px 18px; cursor: pointer; font-size: 13px;
+    color: var(--text-main); border-bottom: 1px solid rgba(0, 0, 0, 0.05);
 }
 
-.search-result-item:hover {
-    background: rgba(37, 99, 235, 0.1);
-    color: var(--primary);
-    padding-left: 25px;
-}
-
-/* --- 4. POSITIONED CONTROLS --- */
-.custom-controls {
+/* --- 5. GENERATION PILLS --- */
+.gen-pill-container {
     position: fixed;
-    top: 1.5rem; right: 1.5rem;
-    display: flex; flex-direction: column; gap: 12px;
-    z-index: 1001;
+    top: 1.5rem;
+    left: calc(1.5rem + 175px);
+    z-index: 1000;
+    display: flex;
+    gap: 8px;
 }
 
-.layer-controls-container { position: fixed; bottom: 1.5rem; left: 1.5rem; z-index: 1001; }
-.locate-me-container { position: fixed; bottom: 1.5rem; right: 1.5rem; z-index: 1001; }
+.gen-pill {
+    background: var(--bg-glass); border: 1px solid var(--border-light);
+    padding: 10px 18px; border-radius: 50px; font-size: 11px;
+    font-weight: 800; cursor: pointer; transition: 0.2s;
+    backdrop-filter: blur(10px); color: var(--text-main);
+    box-shadow: var(--shadow-premium);
+}
+
+.gen-pill.active { background: var(--primary); color: white; border-color: var(--primary); }
+
+/* --- 6. FLOATING CONTROLS --- */
+.custom-controls {
+    position: fixed; top: 1.5rem; right: 1.5rem;
+    display: flex; flex-direction: column; gap: 10px; z-index: 1001;
+}
 
 .control-btn {
-    width: 48px; height: 48px;
-    background: var(--bg-glass);
-    backdrop-filter: blur(12px);
-    border: 1px solid var(--border-light);
-    border-radius: 14px;
+    width: 48px; height: 48px; background: var(--bg-glass);
+    backdrop-filter: blur(10px); border: 1px solid var(--border-light);
+    border-radius: 15px; cursor: pointer; color: var(--text-main);
     display: flex; align-items: center; justify-content: center;
-    cursor: pointer;
-    box-shadow: var(--shadow-premium);
-    transition: var(--transition);
-    color: var(--text-main);
+    transition: var(--transition); box-shadow: var(--shadow-premium);
 }
 
-.control-btn:hover { transform: translateY(-2px); background: white; }
+.control-btn:hover { background: white; transform: scale(1.05); }
 
+.layer-controls-container { position: fixed; bottom: 1.5rem; left: 1.5rem; z-index: 1001; }
 .layer-controls {
-    display: flex;
-    background: var(--bg-glass);
-    backdrop-filter: blur(12px);
-    padding: 4px;
-    border-radius: 14px;
-    box-shadow: var(--shadow-premium);
-    border: 1px solid var(--border-light);
+    display: flex; background: var(--bg-glass);
+    padding: 4px; border-radius: 14px; border: 1px solid var(--border-light);
 }
 
 .layer-btn {
-    padding: 8px 16px;
-    border: none; background: transparent;
-    font-size: 13px; font-weight: 600;
-    cursor: pointer; border-radius: 10px;
-    color: var(--text-muted); transition: var(--transition);
+    padding: 8px 16px; border: none; background: transparent;
+    font-size: 13px; font-weight: 600; cursor: pointer;
+    border-radius: 10px; color: var(--text-muted); transition: 0.2s;
+}
+.layer-btn.active { background: white; color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.05); }
+
+/* --- 7. PREMIUM BUTTONS --- */
+.btn-primary-auth, .btn-agree {
+    width: 100%;
+    padding: 14px;
+    background: var(--primary);
+    color: white;
+    border: none;
+    border-radius: 14px;
+    font-weight: 700;
+    font-size: 14px;
+    letter-spacing: 0.3px;
+    cursor: pointer;
+    transition: var(--transition);
+    box-shadow: 0 4px 15px rgba(37, 99, 235, 0.25);
+    display: flex;
+    align-items: center;
+    justify-content: center;
 }
 
-.layer-btn.active {
-    background: white;
-    color: var(--primary);
-    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+.btn-primary-auth:hover, .btn-agree:hover {
+    background: var(--primary-hover);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(37, 99, 235, 0.35);
 }
 
-/* --- 5. MODAL & AUTH UI --- */
+/* --- 8. AUTH & MODALS --- */
 .meta-modal-bg {
-    display: none;
-    position: fixed; inset: 0;
-    background: rgba(15, 23, 42, 0.4);
-    backdrop-filter: blur(12px);
-    z-index: 99999;
+    display: none; position: fixed; inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(12px); z-index: 10000;
     justify-content: center; align-items: center;
+    transition: opacity 0.3s ease;
 }
 
-.auth-container {
-    background: white;
-    padding: 40px;
-    border-radius: 32px;
-    width: 420px;
-    max-width: 90%;
-    position: relative;
+.meta-modal-content {
+    background: white; padding: 32px; border-radius: 30px;
+    width: 420px; max-width: 90%; position: relative;
     box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
-    overflow: hidden;
-    text-align: center;
-}
-
-.auth-icon-top {
-    width: 60px; height: 60px;
-    background: #eff6ff; color: var(--primary);
-    border-radius: 20px;
-    display: flex; align-items: center; justify-content: center;
-    margin: 0 auto 20px; font-size: 24px;
-}
-
-.auth-input-group { position: relative; margin-bottom: 16px; text-align: left; }
-.auth-input-group i {
-    position: absolute; left: 16px; top: 50%;
-    transform: translateY(-50%); color: var(--text-muted);
 }
 
 .auth-field {
-    width: 100%;
-    padding: 14px 16px 14px 45px;
-    border-radius: 14px;
-    border: 1px solid #e2e8f0;
-    background: #f8fafc;
-    font-size: 15px; outline: none;
-    transition: all 0.2s ease;
+    width: 100%; padding: 14px 14px 14px 45px;
+    border-radius: 15px; border: 1px solid #e2e8f0;
+    background: #f8fafc; font-size: 14px; outline: none; transition: 0.2s;
 }
 
-.auth-field:focus {
-    border-color: var(--primary);
-    background: white;
-    box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.1);
-}
-
-.auth-content-wrapper {
-    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.4s ease;
-}
-
-.auth-slide-out { opacity: 0; transform: translateX(-20px); }
-.auth-slide-in { opacity: 0; transform: translateX(20px); }
-
-.btn-primary-auth {
-    width: 100%; padding: 16px;
-    background: #1e293b; color: white;
-    border: none; border-radius: 14px;
-    font-weight: 700; cursor: pointer; transition: var(--transition);
-}
-
-.btn-primary-auth:hover { background: #000; transform: translateY(-1px); }
-
-/* --- 6. DARK THEME OVERRIDES --- */
+/* --- 9. DARK THEME UI OVERRIDES --- */
 body.dark-theme .search-box,
+body.dark-theme .navigation-bar,
+body.dark-theme .gen-pill,
 body.dark-theme .control-btn,
 body.dark-theme .layer-controls,
-body.dark-theme .auth-container,
-body.dark-theme .search-results {
+body.dark-theme .meta-modal-content {
     background: var(--bg-glass-dark) !important;
     border-color: var(--border-dark);
-    color: var(--text-dark) !important; /* Forces general text to white */
+    color: white !important;
 }
 
-/* Specific fix for Search Input text */
-body.dark-theme #search-input {
-    color: #ffffff !important;
+body.dark-theme .auth-field {
+    background: rgba(15, 23, 42, 0.5);
+    border-color: var(--border-dark);
+    color: white;
 }
 
-body.dark-theme #search-input::placeholder {
-    color: rgba(255, 255, 255, 0.5);
-}
+body.dark-theme #search-input { color: white; }
+body.dark-theme #clear-search:hover { background: rgba(255, 255, 255, 0.1); }
+body.dark-theme .shortcut-btn.active { background: rgba(255,255,255,0.1); color: var(--primary); }
 
-/* Specific fix for Search Result Items */
-body.dark-theme .search-result-item {
-    color: #f8fafc !important; /* Crisp off-white */
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+/* ANIMATIONS */
+@keyframes slideUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
 }
+.meta-modal-content { animation: slideUp 0.3s ease-out; }
 
-body.dark-theme .search-result-item i {
-    color: #94a3b8; /* Keep the icon slightly muted */
-}
-
-body.dark-theme .search-result-item:hover {
-    background: rgba(37, 99, 235, 0.2);
-    color: #ffffff !important;
-    box-shadow: inset 4px 0 0 var(--primary); /* Blue indicator on the left */
-}
-
-/* Fix for the "X" button in dark mode */
-body.dark-theme .icon-button {
-    color: rgba(255, 255, 255, 0.6);
-}
-
-body.dark-theme .icon-button:hover {
-    color: #ff4d4d;
-}
-/* --- 7. MISC --- */
-.close-x {
-    position: absolute; right: 20px; top: 20px;
-    font-size: 24px; cursor: pointer; color: var(--text-muted);
-}
-
-.tag-grid { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 20px 0; }
-.meta-tag { display: none; }
-.tag-label {
-    padding: 8px 16px; border: 2px solid #e2e8f0; border-radius: 20px;
-    cursor: pointer; font-size: 13px; font-weight: 600; color: var(--text-muted);
-}
-
-.meta-tag:checked + .tag-label {
-    background: var(--primary); border-color: var(--primary); color: white;
+/* Mobile Responsive */
+@media (max-width: 850px) {
+    .navigation-bar { top: auto; bottom: 20px; left: 50%; transform: translateX(-50%); flex-direction: row; width: 90%; }
+    .gen-pill-container { top: auto; bottom: 85px; left: 50%; transform: translateX(-50%); }
+    .top-bar { top: 1rem; width: 95%; }
 }
