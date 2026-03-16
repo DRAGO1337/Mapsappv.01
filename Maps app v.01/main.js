@@ -21,6 +21,14 @@ const layers = {
 
 layers.street.addTo(map);
 
+/* --- NEW: SHORTCUT TAB LOGIC --- */
+window.goToRegion = (lat, lng, zoom) => {
+    map.flyTo([lat, lng], zoom, {
+        animate: true,
+        duration: 2
+    });
+};
+
 function handleLayerFilter(layerType) {
     if (layerType === 'street') {
         document.body.classList.add('map-dark-active');
@@ -42,7 +50,7 @@ document.querySelectorAll('.layer-btn').forEach(btn => {
     };
 });
 
-// --- 3. SEARCH LOGIC (ACCURACY & DARK MODE FIX) ---
+// --- 3. SEARCH LOGIC ---
 const searchInput = document.getElementById('search-input');
 const searchResults = document.getElementById('search-results');
 const clearSearchBtn = document.getElementById('clear-search');
@@ -52,8 +60,6 @@ function performSearch(query) {
         searchResults.style.display = 'none';
         return;
     }
-
-    // limit=10 gives us a better pool to find the actual city center
     fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(query)}&limit=10&addressdetails=1`)
         .then(res => res.json())
         .then(data => {
@@ -62,13 +68,10 @@ function performSearch(query) {
                 searchResults.style.display = 'none';
                 return;
             }
-
             searchResults.style.display = 'block';
-
             data.forEach(item => {
                 const div = document.createElement('div');
                 div.className = 'search-result-item';
-
                 const addr = item.address;
                 const mainName = addr.city || addr.town || addr.village || addr.hamlet || item.display_name.split(',')[0];
                 const subName = [addr.state, addr.country].filter(Boolean).join(', ');
@@ -80,17 +83,8 @@ function performSearch(query) {
                         <span style="font-size: 11px; opacity: 0.6; color: inherit;">${subName}</span>
                     </div>
                 `;
-
                 div.onclick = () => {
-                    const lat = parseFloat(item.lat);
-                    const lon = parseFloat(item.lon);
-
-                    // Zoom level 12 prevents the "lost in the woods" feeling
-                    map.flyTo([lat, lon], 12, {
-                        animate: true,
-                        duration: 1.8
-                    });
-
+                    map.flyTo([parseFloat(item.lat), parseFloat(item.lon)], 12, { animate: true, duration: 1.8 });
                     searchResults.style.display = 'none';
                     searchInput.value = mainName;
                 };
@@ -108,22 +102,10 @@ function debounce(func, wait) {
 }
 
 searchInput.addEventListener('input', debounce((e) => performSearch(e.target.value), 400));
+clearSearchBtn.onclick = () => { searchInput.value = ''; searchResults.style.display = 'none'; searchInput.focus(); };
 
-clearSearchBtn.onclick = () => {
-    searchInput.value = '';
-    searchResults.style.display = 'none';
-    searchInput.focus();
-};
-
-document.addEventListener('click', (e) => {
-    if (!document.querySelector('.search-box').contains(e.target)) {
-        searchResults.style.display = 'none';
-    }
-});
-
-// --- 4. THEME & UI LOGIC ---
+// --- 4. THEME & UI ---
 const themeToggle = document.getElementById('theme-toggle');
-
 function applyTheme(theme) {
     const icon = themeToggle.querySelector('i');
     if (theme === 'dark') {
@@ -134,25 +116,14 @@ function applyTheme(theme) {
         icon.classList.replace('fa-sun', 'fa-moon');
     }
 }
-
 themeToggle.onclick = () => {
     const newTheme = document.body.classList.contains('dark-theme') ? 'light' : 'dark';
     localStorage.setItem('map-app-theme', newTheme);
     applyTheme(newTheme);
 };
-
 applyTheme(localStorage.getItem('map-app-theme') || 'light');
 
-document.getElementById('current-location').onclick = () => {
-    map.locate({setView: true, maxZoom: 16});
-};
-
-map.on('locationfound', (e) => {
-    L.circle(e.latlng, e.accuracy / 2).addTo(map);
-    L.marker(e.latlng).addTo(map).bindPopup("You are here").openPopup();
-});
-
-// --- 5. MARKER & SUPABASE FUNCTIONS ---
+// --- 5. MARKER & SUPABASE ---
 function placeSavedMarker(pinData) {
     if (!pinData.lat || !pinData.lng) return;
     const marker = L.marker([pinData.lat, pinData.lng]).addTo(map);
@@ -171,7 +142,7 @@ async function savePinToCloud(lat, lng, tags) {
     await supabase.from('metas').insert([{ lat, lng, tags, image_url: "" }]);
 }
 
-// --- 6. AUTHENTICATION ---
+// --- 6. AUTHENTICATION (UPDATED WITH HCAPTCHA) ---
 let isSignUpMode = false;
 const toggleAuthBtn = document.getElementById('toggle-auth');
 
@@ -188,6 +159,7 @@ if (toggleAuthBtn) {
             wrapper.classList.remove('auth-slide-out');
             wrapper.classList.add('auth-slide-in');
             setTimeout(() => wrapper.classList.remove('auth-slide-in'), 50);
+            hcaptcha.reset(); // Reset captcha on toggle
         }, 300);
     };
 }
@@ -195,14 +167,34 @@ if (toggleAuthBtn) {
 document.getElementById('auth-action-btn').onclick = async () => {
     const email = document.getElementById('login-email').value;
     const password = document.getElementById('login-password').value;
+
+    // Check hCaptcha token
+    const captchaResponse = hcaptcha.getResponse();
+
     if (!email || !password) return alert("Fields cannot be empty");
+    if (!captchaResponse) return alert("Please complete the captcha!");
 
-    let result = isSignUpMode
-        ? await supabase.auth.signUp({ email, password })
-        : await supabase.auth.signInWithPassword({ email, password });
+    let result;
+    if (isSignUpMode) {
+        result = await supabase.auth.signUp({
+            email,
+            password,
+            options: { captchaToken: captchaResponse }
+        });
+    } else {
+        result = await supabase.auth.signInWithPassword({
+            email,
+            password,
+            options: { captchaToken: captchaResponse }
+        });
+    }
 
-    if (result.error) alert(result.error.message);
-    else location.reload();
+    if (result.error) {
+        alert(result.error.message);
+        hcaptcha.reset();
+    } else {
+        location.reload();
+    }
 };
 
 document.getElementById('doLogout').onclick = async () => {
